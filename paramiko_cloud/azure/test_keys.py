@@ -55,7 +55,7 @@ class TestECDSAKey(TestCase):
     @patch("azure.keyvault.keys.crypto.CryptographyClient")
     @patch("azure.keyvault.keys.KeyClient")
     def test_key_from_cloud_can_sign(self, key_client_mock: Mock, crypto_client_mock: Mock):
-        from paramiko_cloud.azure import ECDSAKey
+        from paramiko_cloud.azure.keys import ECDSAKey
         for curve, hash_ in self.ALL_SUPPORTED_ALGOS:
             with self.subTest("Using curve {} and hash {}".format(curve.name, hash_.name)):
                 set_up_mocks(key_client_mock, crypto_client_mock, curve, hash_, self.TEST_KEY_NAME)
@@ -67,7 +67,7 @@ class TestECDSAKey(TestCase):
     @patch("azure.keyvault.keys.crypto.CryptographyClient")
     @patch("azure.keyvault.keys.KeyClient")
     def test_key_from_cloud_can_produce_valid_certificate(self, key_client_mock: Mock, crypto_client_mock: Mock):
-        from paramiko_cloud.azure import ECDSAKey
+        from paramiko_cloud.azure.keys import ECDSAKey
         for curve, hash_ in self.ALL_SUPPORTED_ALGOS:
             with self.subTest("Using curve {} and hash {}".format(curve.name, hash_.name)):
                 set_up_mocks(key_client_mock, crypto_client_mock, curve, hash_, self.TEST_KEY_NAME)

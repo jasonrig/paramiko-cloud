@@ -8,7 +8,7 @@ from google.cloud.kms_v1 import AsymmetricSignResponse, Digest
 from google.cloud.kms_v1.types.resources import PublicKey, CryptoKeyVersion
 from paramiko.rsakey import RSAKey
 
-from paramiko_cloud.gcp import ECDSAKey
+from paramiko_cloud.gcp.keys import ECDSAKey
 from paramiko_cloud.test_helpers import parse_certificate, sha256_fingerprint
 
 

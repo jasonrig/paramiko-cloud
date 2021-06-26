@@ -70,7 +70,8 @@ def parse_certificate(cert_string: str) -> Tuple[int, ParsedCertificateResponse]
     with tempfile.NamedTemporaryFile() as f:
         f.write(cert_string.encode())
         f.flush()
-        try: # Python 3.7+
+        try:
+            # Python 3.7+
             result = subprocess.run(["ssh-keygen", "-L", "-f", f.name], capture_output=True)
         except TypeError:
             # Python 3.6

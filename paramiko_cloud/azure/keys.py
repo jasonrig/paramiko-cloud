@@ -82,8 +82,10 @@ class ECDSAKey(BaseKeyECDSA):
         "EC",
     )
 
-    def __init__(self, credential: Union[
-        DefaultAzureCredential, AzurePowerShellCredential, InteractiveBrowserCredential, ChainedTokenCredential, EnvironmentCredential, ManagedIdentityCredential, SharedTokenCacheCredential, AzureCliCredential, VisualStudioCodeCredential],
+    def __init__(self, credential: Union[DefaultAzureCredential, AzurePowerShellCredential,
+                                         InteractiveBrowserCredential, ChainedTokenCredential, EnvironmentCredential,
+                                         ManagedIdentityCredential, SharedTokenCacheCredential, AzureCliCredential,
+                                         VisualStudioCodeCredential],
                  vault_url: str, key_name: str):
         """
         Constructor

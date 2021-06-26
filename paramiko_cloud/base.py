@@ -109,7 +109,8 @@ class BaseKeyECDSA(ECDSAKey):
         Args:
             pub_key: the SSH public key
             principals: a list of principals to encode into the certificate
-            extensions: a dictionary of certificate extensions, see https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.certkeys
+            extensions: a dictionary of certificate extensions,
+                        see https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.certkeys
             **kwargs: additional certificate configuration parameters, see `pki.CertificateParameters`
 
         Returns:

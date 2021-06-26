@@ -78,6 +78,7 @@ def parse_certificate(cert_string: str) -> Tuple[int, ParsedCertificateResponse]
             result = subprocess.run(["ssh-keygen", "-L", "-f", f.name], stdout=subprocess.PIPE)
         return result.returncode, ParsedCertificateResponse(result.stdout.decode())
 
+
 def sha256_fingerprint(key: PKey) -> str:
     return base64.b64encode(
         hashlib.sha256(key.asbytes()).digest()

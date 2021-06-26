@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import base64
 import datetime
 import enum
@@ -81,7 +79,7 @@ class CertificateExtensions(enum.Enum):
     PERMIT_USER_RC = "permit-user-rc"
 
     @classmethod
-    def permit_all(cls) -> Dict[CertificateExtensions, str]:
+    def permit_all(cls) -> Dict["CertificateExtensions", str]:
         """
         Convenience method to return a dict enabling all extensions
 

@@ -70,7 +70,11 @@ def parse_certificate(cert_string: str) -> Tuple[int, ParsedCertificateResponse]
     with tempfile.NamedTemporaryFile() as f:
         f.write(cert_string.encode())
         f.flush()
-        result = subprocess.run(["ssh-keygen", "-L", "-f", f.name], capture_output=True)
+        try: # Python 3.7+
+            result = subprocess.run(["ssh-keygen", "-L", "-f", f.name], capture_output=True)
+        except TypeError:
+            # Python 3.6
+            result = subprocess.run(["ssh-keygen", "-L", "-f", f.name], stdout=subprocess.PIPE)
         return result.returncode, ParsedCertificateResponse(result.stdout.decode())
 
 def sha256_fingerprint(key: PKey) -> str:

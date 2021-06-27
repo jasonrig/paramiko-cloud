@@ -56,6 +56,13 @@ class _AWSSigningKey(CloudSigningKey):
 class ECDSAKey(BaseKeyECDSA):
     """
     An AWS KMS-based ECDSA key
+
+    Args:
+        key_id: the AWS KMS key id
+        **kwargs: extra parameters passed to the Boto3 kms client, see the `Boto3 documentation`_.
+
+    .. _Boto3 documentation:
+       https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client
     """
 
     _ALLOWED_ALGOS = (
@@ -65,14 +72,6 @@ class ECDSAKey(BaseKeyECDSA):
     )
 
     def __init__(self, key_id: str, **kwargs):
-        """
-        Constructor
-
-        Args:
-            key_id: the AWS KMS key id
-            **kwargs: extra parameters passed to the boto3 kms client, e.g. region_name
-        """
-
         client = boto3.client('kms', **kwargs)
         pub_key = client.get_public_key(
             KeyId=key_id,

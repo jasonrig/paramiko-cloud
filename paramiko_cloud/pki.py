@@ -12,9 +12,9 @@ from paramiko.pkey import PKey, PublicBlob
 from paramiko.rsakey import RSAKey
 
 
-class _WritablePublicBlob(PublicBlob):
+class CertificateBlob(PublicBlob):
     """
-    An extension to PublicBlob that can be written as an OpenSSH-compatible string
+    A signed SSH certificate
     """
 
     def cert_string(self, comment: str = None) -> str:
@@ -48,6 +48,13 @@ class CertificateType(enum.Enum):
 
 
 class CertificateCriticalOptions(enum.Enum):
+    """
+    `Certificate critical options`_
+
+    .. _Certificate critical options:
+       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L221
+    """
+
     # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L248
     FORCE_COMMAND = "force-command"
 
@@ -57,7 +64,10 @@ class CertificateCriticalOptions(enum.Enum):
 
 class CertificateExtensions(enum.Enum):
     """
-    Certificate extensions that can be enabled
+    `Certificate extensions`_
+
+    .. _Certificate extensions:
+       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L270
     """
 
     # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L290
@@ -98,17 +108,40 @@ class CertificateExtensions(enum.Enum):
 
 class CertificateParameters:
     """
-    Class containing all certificate parameters needed for signing
+    All certificate parameters needed for signing
+
+    Args:
+        valid_for: duration of certificate validity, overridden by `valid_before`
+
+    Keyword Args:
+        type (CertificateType): `type of certificate`_ to issue
+        key_id (str): `key identifier`_
+        serial (int): certificate `serial number`_
+        principals (List[str]): list of `valid principals`_
+        valid_after (int): `time after which the certificate is valid`_ (unix epoch, defaults to now)
+        valid_before (int): `time before which the certificate is valid`_ (unix epoch)
+        critical_opts (Dict[CertificateCriticalOptions, str]): dict of certificate `critical options`_
+        extensions (Dict[CertificateExtensions, str]): dict of certificate `extensions`_
+
+    .. _type of certificate:
+       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L169
+    .. _key identifier:
+       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L172
+    .. _serial number:
+       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L164
+    .. _valid principals:
+       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L176
+    .. _time after which the certificate is valid:
+       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L183
+    .. _time before which the certificate is valid:
+       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L183
+    .. _critical options:
+       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L221
+    .. _extensions:
+       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L270
     """
 
     def __init__(self, valid_for: Optional[datetime.timedelta] = datetime.timedelta(hours=1), **kwargs):
-        """
-        Constructor
-
-        Args:
-            valid_for: duration of certificate validity
-            **kwargs: other certificate parameters
-        """
 
         now = int(time.time())
 
@@ -128,7 +161,7 @@ class CertificateParameters:
         self.valid_after: int = kwargs.get("valid_after", now)
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L87
-        self.valid_before: int = kwargs.get("valid_before", now + valid_for.seconds)
+        self.valid_before: int = kwargs.get("valid_before", self.valid_after + valid_for.seconds)
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L88
         self.critical_opts: List[Tuple[CertificateCriticalOptions, str]] = sorted(
@@ -145,19 +178,15 @@ class CertificateParameters:
 class CertificateSigningRequest:
     """
     Combines the key to be signed and the certificate parameters
+
+    Args:
+        public_key: key to sign
+        cert_params: certificate parameters
     """
 
     _CERT_SUFFIX = "-cert-v01@openssh.com"
 
     def __init__(self, public_key: PKey, cert_params: CertificateParameters):
-        """
-        Constructor
-
-        Args:
-            public_key: key to sign
-            cert_params: certificate parameters
-        """
-
         self.cert_params = cert_params
         self.public_key = public_key
 
@@ -212,7 +241,7 @@ class CertificateSigningRequest:
                 m.add_string(opt_value.asbytes())
         return m
 
-    def sign(self, signing_key: PKey) -> _WritablePublicBlob:
+    def sign(self, signing_key: PKey) -> CertificateBlob:
         """
         Signs the public key using the signing key
 
@@ -256,4 +285,29 @@ class CertificateSigningRequest:
         cert.add_string(signing_key.sign_ssh_data(cert.asbytes()))
         cert.rewind()
 
-        return _WritablePublicBlob.from_message(cert)
+        return CertificateBlob.from_message(cert)
+
+class CertificateSigningKeyMixin(PKey):
+    """
+    Mixin that allows a key to act as a certificate authority
+    """
+
+    def sign_certificate(self, pub_key: PKey, principals: List[str],
+                         extensions: Dict[CertificateExtensions, str] = None, **kwargs) -> CertificateBlob:
+        """
+        Signs a public key to produce a certificate
+
+        Args:
+            pub_key: the SSH public key
+            principals: a list of principals to encode into the certificate
+            extensions: a dictionary of certificate extensions, see :py:mod:`paramiko_cloud.pki.CertificateExtensions`
+            **kwargs: additional certificate configuration parameters passed to the constructor of :py:mod:`paramiko_cloud.pki.CertificateParameters`
+
+        Returns:
+            A PublicBlob object containing the signed certificate
+        """
+        return CertificateSigningRequest(pub_key, CertificateParameters(
+            principals=principals,
+            extensions=extensions or CertificateExtensions.permit_all(),
+            **kwargs
+        )).sign(self)

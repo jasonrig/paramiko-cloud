@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric.ec import ECDSA, EllipticCurvePub
 from paramiko import ECDSAKey, Message, PKey
 
 from paramiko_cloud.pki import CertificateSigningRequest, CertificateParameters, CertificateExtensions, \
-    _WritablePublicBlob
+    CertificateBlob, CertificateSigningKeyMixin
 
 
 class CloudSigningKey(abc.ABC):
@@ -55,7 +55,7 @@ class CloudSigningKey(abc.ABC):
         raise NotImplementedError()
 
 
-class BaseKeyECDSA(ECDSAKey):
+class BaseKeyECDSA(ECDSAKey, CertificateSigningKeyMixin):
     """
     Base class for all cloud-backed ECDSA keys
     """
@@ -100,24 +100,3 @@ class BaseKeyECDSA(ECDSAKey):
             pubkey_string=base64.standard_b64encode(key_bytes).decode(),
             comment=comment or datetime.now().isoformat()
         )
-
-    def sign_certificate(self, pub_key: PKey, principals: List[str],
-                         extensions: Dict[CertificateExtensions, str] = None, **kwargs) -> _WritablePublicBlob:
-        """
-        Signs a public key to produce a certificate
-
-        Args:
-            pub_key: the SSH public key
-            principals: a list of principals to encode into the certificate
-            extensions: a dictionary of certificate extensions,
-                        see https://github.com/openssh/openssh-portable/blob/master/PROTOCOL.certkeys
-            **kwargs: additional certificate configuration parameters, see `pki.CertificateParameters`
-
-        Returns:
-            A PublicBlob object containing the signed certificate
-        """
-        return CertificateSigningRequest(pub_key, CertificateParameters(
-            principals=principals,
-            extensions=extensions or CertificateExtensions.permit_all(),
-            **kwargs
-        )).sign(self)

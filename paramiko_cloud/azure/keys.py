@@ -23,16 +23,13 @@ _CURVES = {
 class _AzureSigningKey(CloudSigningKey):
     """
     Provides signing operations to Paramiko for the Azure Key Vault-backed key
+
+    Args:
+        crypto_client: the Key Vault Cryptography Client authenticated to access the selected key
+        curve: the elliptic curve used for this key
     """
 
     def __init__(self, crypto_client: CryptographyClient, curve: EllipticCurve):
-        """
-        Constructor
-
-        Args:
-            crypto_client: the Key Vault Cryptography Client authenticated to access the selected key
-            curve: the elliptic curve used for this key
-        """
         super().__init__(curve)
         self.crypto_client = crypto_client
 
@@ -76,6 +73,14 @@ class _AzureSigningKey(CloudSigningKey):
 class ECDSAKey(BaseKeyECDSA):
     """
     An Azure Key Vault-backed ECDSA key
+
+    Args:
+        credential: an `Azure credential`_ suitable for accessing the key in Key Vault
+        vault_url: the vault URL
+        key_name: the name of the key in the vault
+
+    .. _Azure credential:
+       https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate
     """
 
     _ALLOWED_ALGOS = (
@@ -87,15 +92,6 @@ class ECDSAKey(BaseKeyECDSA):
                                          ManagedIdentityCredential, SharedTokenCacheCredential, AzureCliCredential,
                                          VisualStudioCodeCredential],
                  vault_url: str, key_name: str):
-        """
-        Constructor
-
-        Args:
-            credential: an Azure credential suitable for accessing the key in Key Vault
-            vault_url: the vault URL
-            key_name: the name of the key in the vault
-        """
-
         vault_client = KeyClient(vault_url, credential=credential)
         pub_key = vault_client.get_key(key_name)
         assert pub_key.key_type in self._ALLOWED_ALGOS, "Unsupported signing algorithm: {}".format(pub_key.key_type)

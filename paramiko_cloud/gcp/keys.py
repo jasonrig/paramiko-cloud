@@ -9,18 +9,13 @@ from paramiko_cloud.base import BaseKeyECDSA, CloudSigningKey
 class _GCPSigningKey(CloudSigningKey):
     """
     Provides signing operations to Paramiko for the Google Cloud Platform KMS-backed key
+    Args:
+        kms_client: a KMS client that can access the selected key
+        key_name: the name of the key
+        curve: the elliptic curve used for this key
     """
 
     def __init__(self, kms_client: kms.KeyManagementServiceClient, key_name: str, curve: EllipticCurve):
-        """
-        Constructor
-
-        Args:
-            kms_client: a KMS client that can access the selected key
-            key_name: the name of the key
-            curve: the elliptic curve used for this key
-        """
-
         super().__init__(curve)
         self.client = kms_client
         self.key_name = key_name
@@ -44,6 +39,13 @@ class _GCPSigningKey(CloudSigningKey):
 class ECDSAKey(BaseKeyECDSA):
     """
     A Google Cloud Platform KMS-based ECDSA key
+
+    Args:
+        kms_client: a `KMS client`_ that can access the selected key
+        key_name: the name of the key
+
+    .. _KMS client:
+       https://googleapis.dev/python/cloudkms/latest/kms_v1/key_management_service.html#google.cloud.kms_v1.services.key_management_service.KeyManagementServiceClient
     """
 
     _ALLOWED_ALGOS = (
@@ -52,14 +54,6 @@ class ECDSAKey(BaseKeyECDSA):
     )
 
     def __init__(self, kms_client: kms.KeyManagementServiceClient, key_name: str):
-        """
-        Constructor
-
-        Args:
-            kms_client: a KMS client that can access the selected key
-            key_name: the name of the key
-        """
-
         pub_key = kms_client.get_public_key(name=key_name)
         assert pub_key.algorithm.name in self._ALLOWED_ALGOS, "Unsupported signing algorithm: {}".format(
             pub_key.algorithm.name)

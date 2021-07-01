@@ -22,8 +22,7 @@ setup(
     author_email='hello@jasonrig.by',
     description='Use cloud-managed keys to sign SSH certificates',
     setup_requires=[
-        "protobuf_distutils",
-        "protoc-wheel-0"
+        "protobuf_distutils"
     ],
     options={
         "generate_py_protobufs": {

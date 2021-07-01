@@ -5,11 +5,13 @@ import secrets
 import time
 from typing import List, Tuple, Union, Dict, Optional
 
+from paramiko.dsskey import DSSKey
 from paramiko.ecdsakey import ECDSAKey
 from paramiko.ed25519key import Ed25519Key
 from paramiko.message import Message
 from paramiko.pkey import PKey, PublicBlob
 from paramiko.rsakey import RSAKey
+from paramiko_cloud.protobuf.csr_pb2 import CSR
 
 
 class CertificateBlob(PublicBlob):
@@ -46,6 +48,30 @@ class CertificateType(enum.Enum):
     # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L74
     HOST = 2
 
+    def pb_enum(self) -> int:
+        """
+        Converts the enum into the correct protobuf value for serialization
+
+        Returns:
+            The serialized enum value
+        """
+
+        return getattr(CSR.Type, self.name)
+
+    @classmethod
+    def from_pb_enum(cls, value: int) -> "CertificateType":
+        """
+        Deserializes the enum value
+
+        Args:
+            value: the serialized enum value
+
+        Returns:
+            The original enum value
+        """
+
+        return getattr(cls, CSR.Type.Name(value))
+
 
 class CertificateCriticalOptions(enum.Enum):
     """
@@ -60,6 +86,30 @@ class CertificateCriticalOptions(enum.Enum):
 
     # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L253
     SOURCE_ADDRESS = "source-address"
+
+    def pb_enum(self) -> int:
+        """
+        Converts the enum into the correct protobuf value for serialization
+
+        Returns:
+            The serialized enum value
+        """
+
+        return getattr(CSR.CriticalOption, self.name)
+
+    @classmethod
+    def from_pb_enum(cls, value: int) -> "CertificateCriticalOptions":
+        """
+        Deserializes the enum value
+
+        Args:
+            value: the serialized enum value
+
+        Returns:
+            The original enum value
+        """
+
+        return getattr(cls, CSR.CriticalOption.Name(value))
 
 
 class CertificateExtensions(enum.Enum):
@@ -96,6 +146,7 @@ class CertificateExtensions(enum.Enum):
         Returns:
             All available extensions
         """
+
         return {
             cls.NO_TOUCH_REQUIRED: "",
             cls.PERMIT_X11_FORWARDING: "",
@@ -104,6 +155,30 @@ class CertificateExtensions(enum.Enum):
             cls.PERMIT_PTY: "",
             cls.PERMIT_USER_RC: "",
         }
+
+    def pb_enum(self) -> int:
+        """
+        Converts the enum into the correct protobuf value for serialization
+
+        Returns:
+            The serialized enum value
+        """
+
+        return getattr(CSR.Extensions, self.name)
+
+    @classmethod
+    def from_pb_enum(cls, value: int) -> "CertificateExtensions":
+        """
+        Deserializes the enum value
+
+        Args:
+            value: the serialized enum value
+
+        Returns:
+            The original enum value
+        """
+
+        return getattr(cls, CSR.Extension.Name(value))
 
 
 class CertificateParameters:
@@ -190,6 +265,86 @@ class CertificateSigningRequest:
         self.cert_params = cert_params
         self.public_key = public_key
 
+    def serialize(self) -> bytes:
+        """
+        Serializes the certificate signing request into a protobuf byte string
+
+        Returns:
+            The serialized certificate signing request
+        """
+
+        csr = CSR()
+
+        if self.cert_params.cert_type == CertificateType.USER:
+            csr.type = CSR.Type.USER
+        else:
+            csr.type = CSR.Type.HOST
+
+        csr.keyId = self.cert_params.key_id
+        csr.serial = self.cert_params.serial
+        csr.principals.extend(self.cert_params.principals)
+        csr.validAfter = self.cert_params.valid_after
+        csr.validBefore = self.cert_params.valid_before
+
+        for opt, val in self.cert_params.critical_opts:
+            option_value = CSR.CriticalOptionValue()
+            option_value.type = opt.pb_enum()
+            option_value.value = val
+            csr.criticalOptions.append(option_value)
+
+        for ext, val in self.cert_params.extensions:
+            extension_value = CSR.ExtensionValue()
+            extension_value.type = ext.pb_enum()
+            extension_value.value = val
+            csr.extensions.append(extension_value)
+
+        csr.publicKeyType = self.public_key.get_name()
+        csr.publicKey = self._get_public_parts().asbytes()
+
+        return csr.SerializeToString()
+
+    @classmethod
+    def deserialize(cls, data: bytes) -> "CertificateSigningRequest":
+        """
+        Deserializes the certificate signing request from a protobuf byte string
+
+        Returns:
+            The original certificate signign request
+        """
+
+        csr = CSR()
+        csr.ParseFromString(data)
+
+        params = CertificateParameters(
+            type=CertificateType.from_pb_enum(csr.type),
+            key_id=csr.keyId,
+            serial=csr.serial,
+            principals=csr.principals,
+            valid_after=csr.validAfter,
+            valid_before=csr.validBefore,
+            critical_options=dict([(CertificateCriticalOptions.from_pb_enum(opt.type), opt.value) for opt in csr.criticalOptions]),
+            extensions=dict([(CertificateExtensions.from_pb_enum(ext.type), ext.value) for ext in csr.extensions])
+        )
+
+        key_type: str = csr.publicKeyType
+        public_key = Message()
+        public_key.add_string(key_type)
+        public_key.add_bytes(csr.publicKey)
+        public_key.rewind()
+
+        if key_type == "ssh-rsa":
+            public_key = RSAKey(public_key)
+        elif key_type == "ssh-ed25519":
+            public_key = Ed25519Key(public_key)
+        elif key_type.startswith("ecdsa-sha2"):
+            public_key = ECDSAKey(public_key)
+        elif key_type == "ssh-dss":
+            public_key = DSSKey(public_key)
+        else:
+            raise NotImplementedError("Key type not supported: {}".format(key_type))
+
+        return cls(public_key, params)
+
     def _get_public_parts(self) -> Message:
         """
         Get the public parts from the public key to be signed
@@ -198,25 +353,9 @@ class CertificateSigningRequest:
             The public parts of the key to be signed
         """
 
-        public_parts = Message()
-        if isinstance(self.public_key, RSAKey):
-            public_parts.add_mpint(self.public_key.public_numbers.e)
-            public_parts.add_mpint(self.public_key.public_numbers.n)
-        elif isinstance(self.public_key, Ed25519Key):
-            pkey_msg = Message(self.public_key.asbytes())
-            pkey_msg.get_string()
-            public_parts.add_string(pkey_msg.get_string())
-        elif isinstance(self.public_key, ECDSAKey):
-            public_parts = Message()
-            pkey_msg = Message(self.public_key.asbytes())
-            pkey_msg.get_string()
-            public_parts.add_string(pkey_msg.get_string())
-            public_parts.add_string(pkey_msg.get_string())
-        else:
-            raise NotImplementedError(
-                "Can't sign certificate of type {cert_type}.".format(cert_type=self.public_key.get_name())
-            )
-        return public_parts
+        public_parts = Message(self.public_key.asbytes())
+        public_parts.get_string()
+        return Message(public_parts.get_remainder())
 
     @staticmethod
     def _encode_options(opts: List[Tuple[Union[CertificateCriticalOptions, CertificateExtensions], str]]) -> Message:
@@ -229,6 +368,7 @@ class CertificateSigningRequest:
         Returns:
             The encoded set of options / extensions
         """
+
         m = Message()
         for k, v in opts:
             m.add_string(k.value)
@@ -251,6 +391,7 @@ class CertificateSigningRequest:
         Returns:
             The signed certificate
         """
+
         assert signing_key.can_sign(), "Key not capable of signing."
 
         public_parts = self._get_public_parts()
@@ -306,6 +447,7 @@ class CertificateSigningKeyMixin(PKey):
         Returns:
             A PublicBlob object containing the signed certificate
         """
+
         return CertificateSigningRequest(pub_key, CertificateParameters(
             principals=principals,
             extensions=extensions or CertificateExtensions.permit_all(),

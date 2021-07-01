@@ -21,9 +21,20 @@ setup(
     author='Jason Rigby',
     author_email='hello@jasonrig.by',
     description='Use cloud-managed keys to sign SSH certificates',
+    setup_requires=[
+        "protobuf_distutils",
+        "protoc-wheel-0"
+    ],
+    options={
+        "generate_py_protobufs": {
+            "source_dir": "./paramiko_cloud/protobuf",
+            "proto_root_path": "."
+        }
+    },
     install_requires=[
         "paramiko",
-        "cryptography"
+        "cryptography",
+        "protobuf"
     ],
     extras_require=extras_require
 )

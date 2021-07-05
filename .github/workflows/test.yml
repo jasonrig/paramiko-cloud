@@ -12,15 +12,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: Clone submodules
+        run: git submodule sync --recursive
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
-      - name: Install dependencies
+      - name: Install dependencies and build protobuf files
         run: |
           python setup.py generate_py_protobufs
+          python setup.py build_grpc
           python -m pip install --upgrade pip
           pip install flake8 pytest pytest-cov
           pip install -e .[all]

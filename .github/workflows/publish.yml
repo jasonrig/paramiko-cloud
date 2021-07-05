@@ -9,6 +9,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: Clone submodules
+        run: git submodule sync --recursive
       - name: Set up Python 3.7
         uses: actions/setup-python@v2
         with:
@@ -16,7 +18,9 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
       - name: Build protobufs
-        run: python setup.py generate_py_protobufs
+        run: |
+          python setup.py generate_py_protobufs
+          python setup.py build_grpc
       - name: Install pypa/build
         run: >-
           python -m

@@ -53,7 +53,8 @@ setup(
     author_email='hello@jasonrig.by',
     description='Use cloud-managed keys to sign SSH certificates',
     setup_requires=[
-        "protobuf_distutils"
+        "protobuf_distutils",
+        "grpcio-tools"
     ],
     cmdclass={
         "build_grpc": GrpcBuild

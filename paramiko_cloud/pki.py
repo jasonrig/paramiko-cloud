@@ -11,6 +11,7 @@ from paramiko.ed25519key import Ed25519Key
 from paramiko.message import Message
 from paramiko.pkey import PKey, PublicBlob
 from paramiko.rsakey import RSAKey
+
 from paramiko_cloud.protobuf.csr_pb2 import CSR
 
 
@@ -217,7 +218,6 @@ class CertificateParameters:
     """
 
     def __init__(self, valid_for: Optional[datetime.timedelta] = datetime.timedelta(hours=1), **kwargs):
-
         now = int(time.time())
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L83
@@ -265,55 +265,46 @@ class CertificateSigningRequest:
         self.cert_params = cert_params
         self.public_key = public_key
 
-    def serialize(self) -> bytes:
+    def to_proto(self) -> CSR:
         """
-        Serializes the certificate signing request into a protobuf byte string
+        Serializes the certificate signing request into a protobuf object
 
         Returns:
-            The serialized certificate signing request
+            Certificate signing request protobuf object
         """
 
         csr = CSR()
-
         if self.cert_params.cert_type == CertificateType.USER:
             csr.type = CSR.Type.USER
         else:
             csr.type = CSR.Type.HOST
-
         csr.keyId = self.cert_params.key_id
         csr.serial = self.cert_params.serial
         csr.principals.extend(self.cert_params.principals)
         csr.validAfter = self.cert_params.valid_after
         csr.validBefore = self.cert_params.valid_before
-
         for opt, val in self.cert_params.critical_opts:
             option_value = CSR.CriticalOptionValue()
             option_value.type = opt.pb_enum()
             option_value.value = val
             csr.criticalOptions.append(option_value)
-
         for ext, val in self.cert_params.extensions:
             extension_value = CSR.ExtensionValue()
             extension_value.type = ext.pb_enum()
             extension_value.value = val
             csr.extensions.append(extension_value)
-
         csr.publicKeyType = self.public_key.get_name()
         csr.publicKey = self._get_public_parts().asbytes()
-
-        return csr.SerializeToString()
+        return csr
 
     @classmethod
-    def deserialize(cls, data: bytes) -> "CertificateSigningRequest":
+    def from_proto(cls, csr: CSR) -> "CertificateSigningRequest":
         """
-        Deserializes the certificate signing request from a protobuf byte string
+        Deserializes the certificate signing request from a protobuf object
 
         Returns:
-            The original certificate signign request
+            The original certificate signing request
         """
-
-        csr = CSR()
-        csr.ParseFromString(data)
 
         params = CertificateParameters(
             type=CertificateType.from_pb_enum(csr.type),
@@ -322,7 +313,8 @@ class CertificateSigningRequest:
             principals=csr.principals,
             valid_after=csr.validAfter,
             valid_before=csr.validBefore,
-            critical_options=dict([(CertificateCriticalOptions.from_pb_enum(opt.type), opt.value) for opt in csr.criticalOptions]),
+            critical_options=dict(
+                [(CertificateCriticalOptions.from_pb_enum(opt.type), opt.value) for opt in csr.criticalOptions]),
             extensions=dict([(CertificateExtensions.from_pb_enum(ext.type), ext.value) for ext in csr.extensions])
         )
 
@@ -427,6 +419,7 @@ class CertificateSigningRequest:
         cert.rewind()
 
         return CertificateBlob.from_message(cert)
+
 
 class CertificateSigningKeyMixin(PKey):
     """

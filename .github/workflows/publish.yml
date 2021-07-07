@@ -19,8 +19,7 @@ jobs:
         uses: arduino/setup-protoc@v1
       - name: Build protobufs
         run: |
-          python setup.py generate_py_protobufs
-          python setup.py build_grpc
+          python setup.py build_proto
       - name: Install pypa/build
         run: >-
           python -m

@@ -2,13 +2,12 @@ import abc
 import base64
 import hashlib
 from datetime import datetime
-from typing import Tuple, Optional, IO, Callable, Any, List, Dict
+from typing import Tuple, Optional, IO, Callable, Any
 
 from cryptography.hazmat.primitives.asymmetric.ec import ECDSA, EllipticCurvePublicKey, EllipticCurve
-from paramiko import ECDSAKey, Message, PKey
+from paramiko import ECDSAKey, Message
 
-from paramiko_cloud.pki import CertificateSigningRequest, CertificateParameters, CertificateExtensions, \
-    CertificateBlob, CertificateSigningKeyMixin
+from paramiko_cloud.pki import CertificateSigningKeyMixin
 
 
 class CloudSigningKey(abc.ABC):

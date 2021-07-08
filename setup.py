@@ -83,7 +83,7 @@ extras_require["all"] = list(itertools.chain(*extras_require.values()))
 
 setup(
     name='paramiko-cloud',
-    version='1.0',
+    version='1.1',
     packages=[
         'paramiko_cloud',
         'paramiko_cloud.aws',
@@ -92,7 +92,7 @@ setup(
         'paramiko_cloud.protobuf'
     ],
     include_package_data=True,
-    url='',
+    url='https://github.com/jasonrig/paramiko-cloud/',
     license='MIT',
     author='Jason Rigby',
     author_email='hello@jasonrig.by',

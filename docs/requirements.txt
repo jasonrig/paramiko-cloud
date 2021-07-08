@@ -1,0 +1,9 @@
+# Requirements for docs build
+paramiko
+cryptography
+boto3
+google-cloud-kms
+azure-keyvault-keys
+azure-identity
+protobuf
+grpcio-tools

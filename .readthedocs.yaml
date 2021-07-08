@@ -1,9 +1,5 @@
 version: 2
 
-build:
-  apt_packages:
-    - protobuf-compiler
-
 python:
   version: "3.7"
   install:

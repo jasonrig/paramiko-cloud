@@ -11,3 +11,4 @@ python:
   system_packages: true
 submodules:
   include: all
+  recursive: true

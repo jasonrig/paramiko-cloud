@@ -56,10 +56,14 @@ html_static_path = ['_static']
 
 # Build protobuf files
 protoc_path = os.path.join(os.path.dirname(__file__), "protoc", "bin")
+work_dir = os.path.join(os.path.dirname(__file__), "..")
+
 setup_env = os.environ.copy()
 setup_env["PATH"] = "{}:{}".format(protoc_path, setup_env.get("PATH", ""))
+
+subprocess.run(["install_protoc.sh"], cwd=work_dir)
 subprocess.run(
     ["python", "setup.py", "build_proto"],
-    cwd=os.path.join(os.path.dirname(__file__), ".."),
+    cwd=work_dir,
     env=setup_env
 )

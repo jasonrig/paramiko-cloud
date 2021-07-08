@@ -8,3 +8,5 @@ python:
       extra_requirements:
         - all
   system_packages: true
+submodules:
+  include: all

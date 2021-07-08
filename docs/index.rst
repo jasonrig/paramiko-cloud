@@ -9,6 +9,7 @@ implementation of SSH certificate authorities straightforward.
 .. toctree::
    api/keys
    api/pki
+   api/grpc
 
 Installation
 ------------

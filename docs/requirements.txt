@@ -1,7 +1,0 @@
-# Requirements file to help docs build
-paramiko
-cryptography
-boto3
-google-cloud-kms
-azure-keyvault-keys
-azure-identity

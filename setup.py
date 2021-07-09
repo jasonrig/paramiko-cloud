@@ -83,7 +83,7 @@ extras_require["all"] = list(itertools.chain(*extras_require.values()))
 
 setup(
     name='paramiko-cloud',
-    version='1.1',
+    version='1.2',
     packages=[
         'paramiko_cloud',
         'paramiko_cloud.aws',

@@ -1,10 +1,10 @@
 import ast
 import itertools
 import os.path
-from distutils.cmd import Command
 from glob import glob
 from typing import List, Tuple
 
+from setuptools import Command
 from setuptools import setup
 
 setup_path = os.path.dirname(os.path.realpath(__file__))
@@ -39,10 +39,10 @@ class ProtoBuild(Command):
 
         # Build the gRPC stubs
         grpc_tools.protoc.main([
-            'grpc_tools.protoc',
-            '-I{}'.format(self.GRPC_PROTO_PATH),
-            '--python_out={}'.format(self.PYTHON_OUT_PATH),
-            '--grpc_python_out={}'.format(self.PYTHON_OUT_PATH),
+            "grpc_tools.protoc",
+            "-I{}".format(self.GRPC_PROTO_PATH),
+            "--python_out={}".format(self.PYTHON_OUT_PATH),
+            "--grpc_python_out={}".format(self.PYTHON_OUT_PATH),
             os.path.join(self.GRPC_PROTO_PATH, "rpc.proto")
         ])
 
@@ -81,22 +81,28 @@ extras_require = {
 }
 extras_require["all"] = list(itertools.chain(*extras_require.values()))
 
+with open("README.md", "rt") as f:
+    long_description = f.read()
+
 setup(
     name='paramiko-cloud',
-    version='1.2.1',
+    version='1.3.0',
     packages=[
-        'paramiko_cloud',
-        'paramiko_cloud.aws',
-        'paramiko_cloud.azure',
-        'paramiko_cloud.gcp',
-        'paramiko_cloud.protobuf'
+        "paramiko_cloud",
+        "paramiko_cloud.dummy",
+        "paramiko_cloud.aws",
+        "paramiko_cloud.azure",
+        "paramiko_cloud.gcp",
+        "paramiko_cloud.protobuf"
     ],
     include_package_data=True,
-    url='https://github.com/jasonrig/paramiko-cloud/',
-    license='MIT',
-    author='Jason Rigby',
-    author_email='hello@jasonrig.by',
-    description='Use cloud-managed keys to sign SSH certificates',
+    url="https://github.com/jasonrig/paramiko-cloud/",
+    license="MIT",
+    author="Jason Rigby",
+    author_email="hello@jasonrig.by",
+    description="Use cloud-managed keys to sign SSH certificates",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     setup_requires=[
         "protobuf_distutils",
         "grpcio-tools",

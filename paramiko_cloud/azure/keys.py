@@ -88,9 +88,9 @@ class ECDSAKey(BaseKeyECDSA):
     )
 
     def __init__(self, credential: Union[DefaultAzureCredential, AzurePowerShellCredential,
-                                         InteractiveBrowserCredential, ChainedTokenCredential, EnvironmentCredential,
-                                         ManagedIdentityCredential, SharedTokenCacheCredential, AzureCliCredential,
-                                         VisualStudioCodeCredential],
+    InteractiveBrowserCredential, ChainedTokenCredential, EnvironmentCredential,
+    ManagedIdentityCredential, SharedTokenCacheCredential, AzureCliCredential,
+    VisualStudioCodeCredential],
                  vault_url: str, key_name: str):
         vault_client = KeyClient(vault_url, credential=credential)
         pub_key = vault_client.get_key(key_name)

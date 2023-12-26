@@ -26,20 +26,20 @@ class CloudSigningKey(abc.ABC):
         self.curve = curve
 
     @staticmethod
-    def digest(data: bytes, ec: ECDSA) -> bytes:
+    def digest(data: bytes, signature_algorithm: ECDSA) -> bytes:
         """
         Calculates the hash of the given data according to the given elliptic curve key
 
         Args:
             data: the data for which to calculate the hash
-            ec: the elliptic curve key that will use the hash
+            signature_algorithm: the elliptic curve signature algorithm
 
         Returns:
             The hash of the data
         """
-        return getattr(hashlib, ec.algorithm.name)(data).digest()
+        return getattr(hashlib, signature_algorithm.algorithm.name)(data).digest()
 
-    def sign(self, data, signature_algorithm: ECDSA) -> bytes:
+    def sign(self, data: bytes, signature_algorithm: ECDSA) -> bytes:
         """
         Calculate the signature for the given data
 

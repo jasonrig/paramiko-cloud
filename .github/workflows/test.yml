@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies and build protobuf files
         run: |
           pip install -U pip
-          pip install -U setuptools
+          pip install 'setuptools<82' six protobuf_distutils grpcio-tools google-pasta
           python setup.py build_proto
           pip install pytest pytest-cov
           pip install -e .[all]

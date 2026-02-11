@@ -17,6 +17,10 @@ jobs:
           python-version: 3.12
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
+      - name: Install protobuf build dependencies
+        run: |
+          pip install -U pip
+          pip install 'setuptools<82' six protobuf_distutils grpcio-tools google-pasta
       - name: Build protobufs
         run: |
           python setup.py build_proto

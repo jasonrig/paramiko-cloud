@@ -1,5 +1,5 @@
 # Paramiko-Cloud
-[![codecov](https://codecov.io/gh/jasonrig/paramiko-cloud/branch/main/graph/badge.svg?token=CJCQ9ITFT4)](https://codecov.io/gh/jasonrig/paramiko-cloud) [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=jasonrig_paramiko-cloud&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=jasonrig_paramiko-cloud) [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=jasonrig_paramiko-cloud&metric=security_rating)](https://sonarcloud.io/dashboard?id=jasonrig_paramiko-cloud) [![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=jasonrig_paramiko-cloud&metric=sqale_index)](https://sonarcloud.io/dashboard?id=jasonrig_paramiko-cloud)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=jasonrig_paramiko-cloud&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=jasonrig_paramiko-cloud) [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=jasonrig_paramiko-cloud&metric=security_rating)](https://sonarcloud.io/dashboard?id=jasonrig_paramiko-cloud) [![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=jasonrig_paramiko-cloud&metric=sqale_index)](https://sonarcloud.io/dashboard?id=jasonrig_paramiko-cloud)
 
 Paramiko-Cloud is an extension to Paramiko that provides ECDSA SSH keys managed by
 cloud-based key management services. As well as enabling Paramiko to perform SSH
@@ -12,3 +12,16 @@ Paramiko-Cloud supports:
 * [Microsoft Azure - Key Vault](https://azure.microsoft.com/en-us/services/key-vault/)
 
 Read the docs here: https://paramiko-cloud.readthedocs.io/en/latest/
+
+## Development with uv
+
+```shell
+# Sync runtime + optional cloud provider dependencies + test tooling
+uv sync --extra all --group dev
+
+# Generate protobuf / gRPC Python modules
+uv run python scripts/build_proto.py
+
+# Run tests
+uv run pytest --cov=./ --cov-report=xml
+```

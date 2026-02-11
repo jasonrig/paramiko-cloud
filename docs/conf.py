@@ -55,14 +55,7 @@ html_theme = 'alabaster'
 html_static_path = ['_static']
 
 # Build protobuf files
-protoc_path = os.path.realpath(os.path.join(os.path.dirname(__file__), "protoc", "bin"))
-
-setup_env = os.environ.copy()
-setup_env["PATH"] = "{}:{}".format(protoc_path, setup_env.get("PATH", ""))
-
-subprocess.run(["bash", "install_protoc.sh"], cwd=os.path.realpath(os.path.dirname(__file__)))
 subprocess.run(
-    ["python", "setup.py", "build_proto"],
+    ["python", "scripts/build_proto.py"],
     cwd=os.path.realpath(os.path.join(os.path.dirname(__file__), "..")),
-    env=setup_env
 )

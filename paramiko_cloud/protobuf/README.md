@@ -5,5 +5,5 @@ run:
 
 ```shell
 # Generate the protobuf classes gRPC stubs
-python setup.py build_proto
+uv run python scripts/build_proto.py
 ```

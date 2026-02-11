@@ -331,18 +331,14 @@ class CertificateSigningRequest:
             principals=csr.principals,
             valid_after=csr.validAfter,
             valid_before=csr.validBefore,
-            critical_options=dict(
-                [
-                    (CertificateCriticalOptions.from_pb_enum(opt.type), opt.value)
-                    for opt in csr.criticalOptions
-                ]
-            ),
-            extensions=dict(
-                [
-                    (CertificateExtensions.from_pb_enum(ext.type), ext.value)
-                    for ext in csr.extensions
-                ]
-            ),
+            critical_options={
+                CertificateCriticalOptions.from_pb_enum(opt.type): opt.value
+                for opt in csr.criticalOptions
+            },
+            extensions={
+                CertificateExtensions.from_pb_enum(ext.type): ext.value
+                for ext in csr.extensions
+            },
         )
 
         key_type: str = csr.publicKeyType

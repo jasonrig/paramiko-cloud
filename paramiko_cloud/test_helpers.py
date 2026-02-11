@@ -11,7 +11,7 @@ class ParsedCertificateResponse:
     def __init__(self, raw_output: str):
         self._parameters: Dict[str, Union[str, List[str]]] = {}
         last_list_key = None
-        last_list = list()
+        last_list = []
         for line in raw_output.splitlines(keepends=False)[1:]:
             line_parts = line.strip().split(":", maxsplit=1)
             try:
@@ -19,7 +19,7 @@ class ParsedCertificateResponse:
                 if last_list_key is not None:
                     self._parameters[last_list_key] = last_list
                     last_list_key = None
-                    last_list = list()
+                    last_list = []
                 if len(value) > 0:
                     self._parameters[key] = value.strip()
                 else:

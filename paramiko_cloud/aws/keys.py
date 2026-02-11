@@ -121,7 +121,7 @@ class ECDSAKey(BaseKeyECDSA):
         """
 
         return (
-            set([algo for _, algo in self._ALLOWED_ALGOS])
+            {algo for _, algo in self._ALLOWED_ALGOS}
             .intersection(supported_algos)
             .pop()
         )

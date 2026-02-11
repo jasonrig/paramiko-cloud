@@ -1,5 +1,6 @@
 from concurrent import futures
-from typing import Optional
+from types import TracebackType
+from typing import Optional, Type
 
 import grpc
 
@@ -19,9 +20,15 @@ class GRPCServer:
         max_workers: maximum number of workers to use in the thread pool
     """
 
-    def __init__(self, signer_servicer: SignerServicer, bind_addr: str = "[::]", port: int = 50051,
-                 server_credentials: Optional[grpc.ServerCredentials] = None, max_workers: int = 10,
-                 shutdown_grace: Optional[int] = None):
+    def __init__(
+        self,
+        signer_servicer: SignerServicer,
+        bind_addr: str = "[::]",
+        port: int = 50051,
+        server_credentials: Optional[grpc.ServerCredentials] = None,
+        max_workers: int = 10,
+        shutdown_grace: Optional[int] = None,
+    ):
         self.shutdown_grace = shutdown_grace
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
         rpc_pb2_grpc.add_SignerServicer_to_server(signer_servicer, self.server)
@@ -35,5 +42,10 @@ class GRPCServer:
         self.server.start()
         return self.server
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         self.server.stop(self.shutdown_grace)

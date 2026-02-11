@@ -24,4 +24,10 @@ uv run python scripts/build_proto.py
 
 # Run tests
 uv run pytest --cov=./ --cov-report=xml
+
+# Static checks (requires generated protobuf modules first)
+uv run python scripts/build_proto.py
+uv run ruff check .
+uv run ruff format . --check
+uv run mypy paramiko_cloud
 ```

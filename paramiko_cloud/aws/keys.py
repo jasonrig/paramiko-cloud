@@ -1,7 +1,11 @@
-from typing import Set
+from typing import Any, Set, cast
 
 import boto3
-from cryptography.hazmat.primitives.asymmetric.ec import ECDSA, EllipticCurve
+from cryptography.hazmat.primitives.asymmetric.ec import (
+    ECDSA,
+    EllipticCurve,
+    EllipticCurvePublicKey,
+)
 from cryptography.hazmat.primitives.serialization import load_der_public_key
 
 from paramiko_cloud.base import BaseKeyECDSA, CloudSigningKey
@@ -12,7 +16,9 @@ class _AWSSigningKey(CloudSigningKey):
     Provides signing operations to Paramiko for the AWS KMS-backed key
     """
 
-    def __init__(self, client, key_id: str, signing_algo: str, curve: EllipticCurve):
+    def __init__(
+        self, client: Any, key_id: str, signing_algo: str, curve: EllipticCurve
+    ) -> None:
         """
         Constructor
 
@@ -46,9 +52,9 @@ class _AWSSigningKey(CloudSigningKey):
             Message=hash_,
             MessageType="DIGEST",
             GrantTokens=[
-                'string',
+                "string",
             ],
-            SigningAlgorithm=self.signing_algo
+            SigningAlgorithm=self.signing_algo,
         )
         return signing_response["Signature"]
 
@@ -71,31 +77,35 @@ class ECDSAKey(BaseKeyECDSA):
         ("ECC_NIST_P521", "ECDSA_SHA_512"),
     )
 
-    def __init__(self, key_id: str, **kwargs):
-        client = boto3.client('kms', **kwargs)
+    def __init__(self, key_id: str, **kwargs: Any) -> None:
+        client = boto3.client("kms", **kwargs)
         pub_key = client.get_public_key(
             KeyId=key_id,
             GrantTokens=[
-                'string',
-            ]
+                "string",
+            ],
         )
 
         assert any(
-            signing_algo in pub_key["SigningAlgorithms"] and
-            key_spec == pub_key["CustomerMasterKeySpec"]
-            for key_spec, signing_algo in self._ALLOWED_ALGOS), \
-            "No supported key/algorithm pair found."
+            signing_algo in pub_key["SigningAlgorithms"]
+            and key_spec == pub_key["CustomerMasterKeySpec"]
+            for key_spec, signing_algo in self._ALLOWED_ALGOS
+        ), "No supported key/algorithm pair found."
         assert pub_key["KeyUsage"] == "SIGN_VERIFY", "Key does not support signing."
 
-        verifying_key = load_der_public_key(pub_key["PublicKey"])
+        verifying_key = cast(
+            EllipticCurvePublicKey, load_der_public_key(pub_key["PublicKey"])
+        )
 
         super().__init__(
             (
                 _AWSSigningKey(
                     client,
                     key_id,
-                    self._choose_signing_algo(set(pub_key["SigningAlgorithms"])), verifying_key.curve),
-                verifying_key
+                    self._choose_signing_algo(set(pub_key["SigningAlgorithms"])),
+                    verifying_key.curve,
+                ),
+                verifying_key,
             )
         )
 
@@ -110,4 +120,8 @@ class ECDSAKey(BaseKeyECDSA):
             The selected signing algorithm
         """
 
-        return set([algo for _, algo in self._ALLOWED_ALGOS]).intersection(supported_algos).pop()
+        return (
+            {algo for _, algo in self._ALLOWED_ALGOS}
+            .intersection(supported_algos)
+            .pop()
+        )

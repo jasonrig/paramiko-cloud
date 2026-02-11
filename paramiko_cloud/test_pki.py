@@ -17,13 +17,23 @@ class PKITest(TestCase):
             keys.append(dss_key)
 
         for key in keys:
-            with self.subTest("CSR from {} key can be serialized and deserialized".format(key.get_name())):
+            with self.subTest(
+                "CSR from {} key can be serialized and deserialized".format(
+                    key.get_name()
+                )
+            ):
                 csr = CertificateSigningRequest(key, CertificateParameters())
                 csr_reconstructed = CertificateSigningRequest.from_proto(csr.to_proto())
-                self.assertEqual(key.get_fingerprint(), csr_reconstructed.public_key.get_fingerprint())
+                self.assertEqual(
+                    key.get_fingerprint(),
+                    csr_reconstructed.public_key.get_fingerprint(),
+                )
                 for attr in dir(csr.cert_params):
                     if not attr.startswith("_"):
-                        self.assertEqual(getattr(csr.cert_params, attr), getattr(csr_reconstructed.cert_params, attr))
+                        self.assertEqual(
+                            getattr(csr.cert_params, attr),
+                            getattr(csr_reconstructed.cert_params, attr),
+                        )
 
     def test_dss_key_type_handling(self):
         csr = CertificateSigningRequest(rsa_key, CertificateParameters()).to_proto()

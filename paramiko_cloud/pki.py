@@ -3,7 +3,7 @@ import datetime
 import enum
 import secrets
 import time
-from typing import List, Tuple, Union, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from paramiko import ECDSAKey, Ed25519Key, RSAKey
 from paramiko.message import Message
@@ -14,7 +14,7 @@ try:
 except ImportError:  # pragma: no cover - only reached on newer Paramiko versions
     DSSKey = None
 
-from paramiko_cloud.protobuf.csr_pb2 import CSR
+from paramiko_cloud.protobuf.csr_pb2 import CSR  # type: ignore[attr-defined]
 
 
 class CertificateBlob(PublicBlob):
@@ -22,7 +22,7 @@ class CertificateBlob(PublicBlob):
     A signed SSH certificate
     """
 
-    def cert_string(self, comment: str = None) -> str:
+    def cert_string(self, comment: Optional[str] = None) -> str:
         """
         Render a string suitable for OpenSSH authorized_keys files
 
@@ -36,7 +36,7 @@ class CertificateBlob(PublicBlob):
         return "{key_type} {key_string} {comment}".format(
             key_type=self.key_type,
             key_string=base64.standard_b64encode(self.key_blob).decode(),
-            comment=comment or datetime.datetime.now().isoformat()
+            comment=comment or datetime.datetime.now().isoformat(),
         )
 
 
@@ -219,35 +219,51 @@ class CertificateParameters:
        https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L270
     """
 
-    def __init__(self, valid_for: Optional[datetime.timedelta] = datetime.timedelta(hours=1), **kwargs):
+    def __init__(
+        self,
+        valid_for: Optional[datetime.timedelta] = datetime.timedelta(hours=1),
+        **kwargs: object,
+    ):
         now = int(time.time())
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L83
-        self.cert_type: CertificateType = kwargs.get("type", CertificateType.USER)
+        self.cert_type = cast(CertificateType, kwargs.get("type", CertificateType.USER))
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L84
-        self.key_id: str = kwargs.get("key_id", "")
+        self.key_id = cast(str, kwargs.get("key_id", ""))
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L82
-        self.serial: int = kwargs.get("serial", 0)
+        self.serial = cast(int, kwargs.get("serial", 0))
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L85
-        self.principals: List[str] = kwargs.get("principals", [])
+        self.principals = cast(List[str], kwargs.get("principals", []))
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L86
-        self.valid_after: int = kwargs.get("valid_after", now)
+        self.valid_after = cast(int, kwargs.get("valid_after", now))
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L87
-        self.valid_before: int = kwargs.get("valid_before", self.valid_after + valid_for.seconds)
+        valid_before = cast(Optional[int], kwargs.get("valid_before"))
+        valid_for_seconds = int(valid_for.total_seconds()) if valid_for else 0
+        self.valid_before = (
+            valid_before
+            if valid_before is not None
+            else self.valid_after + valid_for_seconds
+        )
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L88
-        self.critical_opts: List[Tuple[CertificateCriticalOptions, str]] = sorted(
-            kwargs.get("critical_options", {}).items(), key=lambda _opt: _opt[0].value
+        critical_options = cast(
+            Dict[CertificateCriticalOptions, str], kwargs.get("critical_options", {})
+        )
+        self.critical_opts = sorted(
+            critical_options.items(), key=lambda _opt: _opt[0].value
         )
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L89
-        self.extensions: List[Tuple[CertificateExtensions, str]] = sorted(
-            kwargs.get("extensions", {}).items(),
+        extensions = cast(
+            Dict[CertificateExtensions, str], kwargs.get("extensions", {})
+        )
+        self.extensions = sorted(
+            extensions.items(),
             key=lambda _ext: _ext[0].value,
         )
 
@@ -315,9 +331,14 @@ class CertificateSigningRequest:
             principals=csr.principals,
             valid_after=csr.validAfter,
             valid_before=csr.validBefore,
-            critical_options=dict(
-                [(CertificateCriticalOptions.from_pb_enum(opt.type), opt.value) for opt in csr.criticalOptions]),
-            extensions=dict([(CertificateExtensions.from_pb_enum(ext.type), ext.value) for ext in csr.extensions])
+            critical_options={
+                CertificateCriticalOptions.from_pb_enum(opt.type): opt.value
+                for opt in csr.criticalOptions
+            },
+            extensions={
+                CertificateExtensions.from_pb_enum(ext.type): ext.value
+                for ext in csr.extensions
+            },
         )
 
         key_type: str = csr.publicKeyType
@@ -352,7 +373,11 @@ class CertificateSigningRequest:
         return Message(public_parts.get_remainder())
 
     @staticmethod
-    def _encode_options(opts: List[Tuple[Union[CertificateCriticalOptions, CertificateExtensions], str]]) -> Message:
+    def _encode_options(
+        opts: List[
+            Tuple[Union[CertificateCriticalOptions, CertificateExtensions], str]
+        ],
+    ) -> Message:
         """
         Encodes the certificate options and extensions into the required format
 
@@ -409,7 +434,20 @@ class CertificateSigningRequest:
         cert.add_int64(self.cert_params.valid_after)
         cert.add_int64(self.cert_params.valid_before)
 
-        for opts in [self.cert_params.critical_opts, self.cert_params.extensions]:
+        for opts in (
+            cast(
+                List[
+                    Tuple[Union[CertificateCriticalOptions, CertificateExtensions], str]
+                ],
+                self.cert_params.critical_opts,
+            ),
+            cast(
+                List[
+                    Tuple[Union[CertificateCriticalOptions, CertificateExtensions], str]
+                ],
+                self.cert_params.extensions,
+            ),
+        ):
             if len(opts) == 0:
                 cert.add_string("")
             else:
@@ -428,8 +466,13 @@ class CertificateSigningKeyMixin(PKey):
     Mixin that allows a key to act as a certificate authority
     """
 
-    def sign_certificate(self, pub_key: PKey, principals: List[str],
-                         extensions: Dict[CertificateExtensions, str] = None, **kwargs) -> CertificateBlob:
+    def sign_certificate(
+        self,
+        pub_key: PKey,
+        principals: List[str],
+        extensions: Optional[Dict[CertificateExtensions, str]] = None,
+        **kwargs: Any,
+    ) -> CertificateBlob:
         """
         Signs a public key to produce a certificate
 
@@ -443,8 +486,11 @@ class CertificateSigningKeyMixin(PKey):
             A PublicBlob object containing the signed certificate
         """
 
-        return CertificateSigningRequest(pub_key, CertificateParameters(
-            principals=principals,
-            extensions=extensions or CertificateExtensions.permit_all(),
-            **kwargs
-        )).sign(self)
+        return CertificateSigningRequest(
+            pub_key,
+            CertificateParameters(
+                principals=principals,
+                extensions=extensions or CertificateExtensions.permit_all(),
+                **kwargs,
+            ),
+        ).sign(self)

@@ -2,9 +2,14 @@ import abc
 import base64
 import hashlib
 from datetime import datetime
-from typing import Tuple, Optional, IO, Callable, Any
+from typing import Any, Callable, IO, Optional, Tuple
 
-from cryptography.hazmat.primitives.asymmetric.ec import ECDSA, EllipticCurvePublicKey, EllipticCurve
+from cryptography.hazmat.primitives.asymmetric.ec import (
+    ECDSA,
+    EllipticCurvePublicKey,
+    EllipticCurve,
+)
+from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from paramiko import ECDSAKey, Message
 
 from paramiko_cloud.pki import CertificateSigningKeyMixin
@@ -37,7 +42,10 @@ class CloudSigningKey(abc.ABC):
         Returns:
             The hash of the data
         """
-        return getattr(hashlib, signature_algorithm.algorithm.name)(data).digest()
+        algorithm = signature_algorithm.algorithm
+        if isinstance(algorithm, Prehashed):
+            algorithm = algorithm._algorithm
+        return getattr(hashlib, algorithm.name)(data).digest()
 
     def sign(self, data: bytes, signature_algorithm: ECDSA) -> bytes:
         """
@@ -68,20 +76,28 @@ class BaseKeyECDSA(ECDSAKey, CertificateSigningKeyMixin):
         """
         super().__init__(vals=vals)
 
-    def write_private_key_file(self, filename: str, password: Optional[str] = ...):
+    def write_private_key_file(
+        self, filename: str, password: Optional[str] = None
+    ) -> None:
         raise RuntimeError("Private key managed externally, cannot export")
 
-    def write_private_key(self, file_obj: IO[str], password: Optional[str] = ...):
+    def write_private_key(
+        self, file_obj: IO[str], password: Optional[str] = None
+    ) -> None:
         raise RuntimeError("Private key managed externally, cannot export")
 
     @classmethod
     def generate(
-            cls, curve: EllipticCurve = ..., progress_func: Optional[Callable[..., Any]] = ...,
-            bits: Optional[int] = ...
-    ):
-        raise RuntimeError("Create new signing keys using the KMS client for your cloud provider")
+        cls,
+        curve: Optional[EllipticCurve] = None,
+        progress_func: Optional[Callable[..., Any]] = None,
+        bits: Optional[int] = None,
+    ) -> "BaseKeyECDSA":
+        raise RuntimeError(
+            "Create new signing keys using the KMS client for your cloud provider"
+        )
 
-    def pubkey_string(self, comment=None) -> str:
+    def pubkey_string(self, comment: Optional[str] = None) -> str:
         """
         Render a string suitable for OpenSSH authorized_keys files
 
@@ -97,5 +113,5 @@ class BaseKeyECDSA(ECDSAKey, CertificateSigningKeyMixin):
         return "{key_type} {pubkey_string} {comment}".format(
             key_type=key_type,
             pubkey_string=base64.standard_b64encode(key_bytes).decode(),
-            comment=comment or datetime.now().isoformat()
+            comment=comment or datetime.now().isoformat(),
         )

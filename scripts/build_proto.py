@@ -24,13 +24,15 @@ def rewrite_pb2_imports() -> None:
         rewritten: list[str] = []
 
         for line in lines:
-            match_alias = re.match(r"^import\s+([A-Za-z0-9_]+_pb2)\s+as\s+([A-Za-z0-9_]+)$", line)
+            match_alias = re.match(
+                r"^import\s+(\w+_pb2)\s+as\s+(\w+)$", line
+            )
             if match_alias:
                 module_name, alias = match_alias.groups()
                 rewritten.append(f"from {BASE_MODULE} import {module_name} as {alias}")
                 continue
 
-            match_plain = re.match(r"^import\s+([A-Za-z0-9_]+_pb2)$", line)
+            match_plain = re.match(r"^import\s+(\w+_pb2)$", line)
             if match_plain:
                 module_name = match_plain.group(1)
                 rewritten.append(f"from {BASE_MODULE} import {module_name}")

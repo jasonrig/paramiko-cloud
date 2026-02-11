@@ -12,3 +12,16 @@ Paramiko-Cloud supports:
 * [Microsoft Azure - Key Vault](https://azure.microsoft.com/en-us/services/key-vault/)
 
 Read the docs here: https://paramiko-cloud.readthedocs.io/en/latest/
+
+## Development with uv
+
+```shell
+# Sync runtime + optional cloud provider dependencies + test tooling
+uv sync --extra all --group dev
+
+# Generate protobuf / gRPC Python modules
+uv run python scripts/build_proto.py
+
+# Run tests
+uv run pytest --cov=./ --cov-report=xml
+```

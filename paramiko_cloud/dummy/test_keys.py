@@ -10,7 +10,7 @@ from paramiko_cloud.test_helpers import parse_certificate, sha256_fingerprint
 private_key = ec.generate_private_key(ec.SECP256R1()).private_bytes(
     encoding=serialization.Encoding.PEM,
     format=serialization.PrivateFormat.PKCS8,
-    encryption_algorithm=serialization.NoEncryption()
+    encryption_algorithm=serialization.NoEncryption(),
 )
 
 
@@ -19,7 +19,9 @@ class TestECDSAKey(TestCase):
         key = ECDSAKey(private_key)
         signature = key.sign_ssh_data(b"hello world")
         signature.rewind()
-        self.assertTrue(key.verify_ssh_sig(b"hello world", signature), "Signature is invalid")
+        self.assertTrue(
+            key.verify_ssh_sig(b"hello world", signature), "Signature is invalid"
+        )
 
     def test_key_from_cloud_can_produce_valid_certificate(self):
         ca_key = ECDSAKey(private_key)
@@ -28,18 +30,18 @@ class TestECDSAKey(TestCase):
         exit_code, cert_details = parse_certificate(cert_string)
         self.assertEqual(
             cert_details.public_key,
-            "RSA-CERT SHA256:{}".format(sha256_fingerprint(client_key))
+            "RSA-CERT SHA256:{}".format(sha256_fingerprint(client_key)),
         )
         self.assertEqual(
             cert_details.signing_ca,
             "ECDSA SHA256:{} (using ecdsa-sha2-nistp{})".format(
-                sha256_fingerprint(ca_key),
-                ca_key.ecdsa_curve.key_length
-            )
+                sha256_fingerprint(ca_key), ca_key.ecdsa_curve.key_length
+            ),
         )
         self.assertEqual(
-            exit_code, 0,
+            exit_code,
+            0,
             "Could not parse generated certificate with ssh-keygen, exit code {}".format(
                 exit_code
-            )
+            ),
         )

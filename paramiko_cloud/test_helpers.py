@@ -2,14 +2,14 @@ import base64
 import hashlib
 import subprocess
 import tempfile
-from typing import Tuple
+from typing import Dict, List, Tuple, Union
 
 from paramiko.pkey import PKey
 
 
 class ParsedCertificateResponse:
     def __init__(self, raw_output: str):
-        self._parameters = dict()
+        self._parameters: Dict[str, Union[str, List[str]]] = {}
         last_list_key = None
         last_list = list()
         for line in raw_output.splitlines(keepends=False)[1:]:
@@ -72,14 +72,16 @@ def parse_certificate(cert_string: str) -> Tuple[int, ParsedCertificateResponse]
         f.flush()
         try:
             # Python 3.7+
-            result = subprocess.run(["ssh-keygen", "-L", "-f", f.name], capture_output=True)
+            result = subprocess.run(
+                ["ssh-keygen", "-L", "-f", f.name], capture_output=True
+            )
         except TypeError:
             # Python 3.6
-            result = subprocess.run(["ssh-keygen", "-L", "-f", f.name], stdout=subprocess.PIPE)
+            result = subprocess.run(
+                ["ssh-keygen", "-L", "-f", f.name], stdout=subprocess.PIPE
+            )
         return result.returncode, ParsedCertificateResponse(result.stdout.decode())
 
 
 def sha256_fingerprint(key: PKey) -> str:
-    return base64.b64encode(
-        hashlib.sha256(key.asbytes()).digest()
-    ).decode().rstrip("=")
+    return base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip("=")

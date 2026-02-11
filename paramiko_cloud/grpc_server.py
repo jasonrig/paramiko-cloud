@@ -19,9 +19,15 @@ class GRPCServer:
         max_workers: maximum number of workers to use in the thread pool
     """
 
-    def __init__(self, signer_servicer: SignerServicer, bind_addr: str = "[::]", port: int = 50051,
-                 server_credentials: Optional[grpc.ServerCredentials] = None, max_workers: int = 10,
-                 shutdown_grace: Optional[int] = None):
+    def __init__(
+        self,
+        signer_servicer: SignerServicer,
+        bind_addr: str = "[::]",
+        port: int = 50051,
+        server_credentials: Optional[grpc.ServerCredentials] = None,
+        max_workers: int = 10,
+        shutdown_grace: Optional[int] = None,
+    ):
         self.shutdown_grace = shutdown_grace
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
         rpc_pb2_grpc.add_SignerServicer_to_server(signer_servicer, self.server)

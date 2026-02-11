@@ -1,12 +1,28 @@
-from typing import Union
+from typing import Union, cast
 
-from azure.identity import DefaultAzureCredential, AzurePowerShellCredential, InteractiveBrowserCredential, \
-    ChainedTokenCredential, EnvironmentCredential, ManagedIdentityCredential, SharedTokenCacheCredential, \
-    AzureCliCredential, VisualStudioCodeCredential
+from azure.identity import (
+    DefaultAzureCredential,
+    AzurePowerShellCredential,
+    InteractiveBrowserCredential,
+    ChainedTokenCredential,
+    EnvironmentCredential,
+    ManagedIdentityCredential,
+    SharedTokenCacheCredential,
+    AzureCliCredential,
+    VisualStudioCodeCredential,
+)
 from azure.keyvault.keys import KeyClient
 from azure.keyvault.keys.crypto import CryptographyClient, SignatureAlgorithm
-from cryptography.hazmat.primitives.asymmetric.ec import ECDSA, EllipticCurvePublicNumbers, SECP256R1, \
-    SECP384R1, SECP521R1, SECP224R1, SECP192R1, EllipticCurve
+from cryptography.hazmat.primitives.asymmetric.ec import (
+    ECDSA,
+    EllipticCurvePublicNumbers,
+    SECP256R1,
+    SECP384R1,
+    SECP521R1,
+    SECP224R1,
+    SECP192R1,
+    EllipticCurve,
+)
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 
 from paramiko_cloud.base import BaseKeyECDSA, CloudSigningKey
@@ -65,8 +81,8 @@ class _AzureSigningKey(CloudSigningKey):
         digest = self.digest(data, signature_algorithm)
         signing_response = self.crypto_client.sign(self._signaure_algorithm(), digest)
         raw_signature = signing_response.signature
-        r = int.from_bytes(raw_signature[:len(raw_signature) // 2], "big")
-        s = int.from_bytes(raw_signature[len(raw_signature) // 2:], "big")
+        r = int.from_bytes(raw_signature[: len(raw_signature) // 2], "big")
+        s = int.from_bytes(raw_signature[len(raw_signature) // 2 :], "big")
         return encode_dss_signature(r, s)
 
 
@@ -83,32 +99,49 @@ class ECDSAKey(BaseKeyECDSA):
        https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate
     """
 
-    _ALLOWED_ALGOS = (
-        "EC",
-    )
+    _ALLOWED_ALGOS = ("EC",)
 
-    def __init__(self, credential: Union[DefaultAzureCredential, AzurePowerShellCredential,
-    InteractiveBrowserCredential, ChainedTokenCredential, EnvironmentCredential,
-    ManagedIdentityCredential, SharedTokenCacheCredential, AzureCliCredential,
-    VisualStudioCodeCredential],
-                 vault_url: str, key_name: str):
+    def __init__(
+        self,
+        credential: Union[
+            DefaultAzureCredential,
+            AzurePowerShellCredential,
+            InteractiveBrowserCredential,
+            ChainedTokenCredential,
+            EnvironmentCredential,
+            ManagedIdentityCredential,
+            SharedTokenCacheCredential,
+            AzureCliCredential,
+            VisualStudioCodeCredential,
+        ],
+        vault_url: str,
+        key_name: str,
+    ):
         vault_client = KeyClient(vault_url, credential=credential)
         pub_key = vault_client.get_key(key_name)
-        assert pub_key.key_type in self._ALLOWED_ALGOS, "Unsupported signing algorithm: {}".format(pub_key.key_type)
+        assert pub_key.key_type in self._ALLOWED_ALGOS, (
+            "Unsupported signing algorithm: {}".format(pub_key.key_type)
+        )
 
-        assert pub_key.key.crv in _CURVES, "Unsupported curve: {}".format(pub_key.key.crv)
+        jwk = pub_key.key
+        assert jwk is not None, "Missing key material from Azure Key Vault."
+        curve_name = cast(str, getattr(jwk, "crv"))
 
-        curve = _CURVES[pub_key.key.crv]()
+        assert curve_name in _CURVES, "Unsupported curve: {}".format(curve_name)
+
+        curve = _CURVES[curve_name]()  # type: ignore[abstract]
 
         verifying_key = EllipticCurvePublicNumbers(
-            int.from_bytes(pub_key.key.x, "big"),
-            int.from_bytes(pub_key.key.y, "big"),
-            curve
+            int.from_bytes(cast(bytes, getattr(jwk, "x")), "big"),
+            int.from_bytes(cast(bytes, getattr(jwk, "y")), "big"),
+            curve,
         ).public_key()
 
         super().__init__(
             (
-                _AzureSigningKey(CryptographyClient(pub_key, credential), verifying_key.curve),
-                verifying_key
+                _AzureSigningKey(
+                    CryptographyClient(pub_key, credential), verifying_key.curve
+                ),
+                verifying_key,
             )
         )

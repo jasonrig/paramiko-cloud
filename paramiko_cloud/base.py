@@ -76,10 +76,14 @@ class BaseKeyECDSA(ECDSAKey, CertificateSigningKeyMixin):
         """
         super().__init__(vals=vals)
 
-    def write_private_key_file(self, filename: str, password: Optional[str] = None):
+    def write_private_key_file(
+        self, filename: str, password: Optional[str] = None
+    ) -> None:
         raise RuntimeError("Private key managed externally, cannot export")
 
-    def write_private_key(self, file_obj: IO[str], password: Optional[str] = None):
+    def write_private_key(
+        self, file_obj: IO[str], password: Optional[str] = None
+    ) -> None:
         raise RuntimeError("Private key managed externally, cannot export")
 
     @classmethod
@@ -88,12 +92,12 @@ class BaseKeyECDSA(ECDSAKey, CertificateSigningKeyMixin):
         curve: Optional[EllipticCurve] = None,
         progress_func: Optional[Callable[..., Any]] = None,
         bits: Optional[int] = None,
-    ):
+    ) -> "BaseKeyECDSA":
         raise RuntimeError(
             "Create new signing keys using the KMS client for your cloud provider"
         )
 
-    def pubkey_string(self, comment=None) -> str:
+    def pubkey_string(self, comment: Optional[str] = None) -> str:
         """
         Render a string suitable for OpenSSH authorized_keys files
 

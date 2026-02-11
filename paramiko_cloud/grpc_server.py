@@ -1,5 +1,6 @@
 from concurrent import futures
-from typing import Optional
+from types import TracebackType
+from typing import Optional, Type
 
 import grpc
 
@@ -41,5 +42,10 @@ class GRPCServer:
         self.server.start()
         return self.server
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         self.server.stop(self.shutdown_grace)

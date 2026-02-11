@@ -1,4 +1,4 @@
-from typing import Set, cast
+from typing import Any, Set, cast
 
 import boto3
 from cryptography.hazmat.primitives.asymmetric.ec import (
@@ -16,7 +16,9 @@ class _AWSSigningKey(CloudSigningKey):
     Provides signing operations to Paramiko for the AWS KMS-backed key
     """
 
-    def __init__(self, client, key_id: str, signing_algo: str, curve: EllipticCurve):
+    def __init__(
+        self, client: Any, key_id: str, signing_algo: str, curve: EllipticCurve
+    ) -> None:
         """
         Constructor
 
@@ -75,7 +77,7 @@ class ECDSAKey(BaseKeyECDSA):
         ("ECC_NIST_P521", "ECDSA_SHA_512"),
     )
 
-    def __init__(self, key_id: str, **kwargs):
+    def __init__(self, key_id: str, **kwargs: Any) -> None:
         client = boto3.client("kms", **kwargs)
         pub_key = client.get_public_key(
             KeyId=key_id,

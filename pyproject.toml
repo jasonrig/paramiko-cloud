@@ -62,8 +62,12 @@ docs = [
 [tool.mypy]
 python_version = "3.9"
 ignore_missing_imports = true
-exclude = "(^|/)test_.*\\.py$"
+exclude = "(^|/)test_.*\\.py$|(^|/)paramiko_cloud/protobuf/.*_pb2.*\\.py$"
 disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = ["paramiko_cloud.protobuf.*"]
+ignore_errors = true
 
 [tool.ruff]
 target-version = "py39"

@@ -3,7 +3,7 @@ import datetime
 import enum
 import secrets
 import time
-from typing import Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from paramiko import ECDSAKey, Ed25519Key, RSAKey
 from paramiko.message import Message
@@ -475,7 +475,7 @@ class CertificateSigningKeyMixin(PKey):
         pub_key: PKey,
         principals: List[str],
         extensions: Optional[Dict[CertificateExtensions, str]] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> CertificateBlob:
         """
         Signs a public key to produce a certificate

@@ -30,7 +30,7 @@ class _GCPSigningKey(CloudSigningKey):
         self.client = kms_client
         self.key_name = key_name
 
-    def sign(self, data, signature_algorithm: ECDSA) -> bytes:
+    def sign(self, data: bytes, signature_algorithm: ECDSA) -> bytes:
         """
         Calculate the signature for the given data
 

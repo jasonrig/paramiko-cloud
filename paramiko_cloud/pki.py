@@ -5,12 +5,14 @@ import secrets
 import time
 from typing import List, Tuple, Union, Dict, Optional
 
-from paramiko.dsskey import DSSKey
-from paramiko.ecdsakey import ECDSAKey
-from paramiko.ed25519key import Ed25519Key
+from paramiko import ECDSAKey, Ed25519Key, RSAKey
 from paramiko.message import Message
 from paramiko.pkey import PKey, PublicBlob
-from paramiko.rsakey import RSAKey
+
+try:
+    from paramiko import DSSKey
+except ImportError:  # pragma: no cover - only reached on newer Paramiko versions
+    DSSKey = None
 
 from paramiko_cloud.protobuf.csr_pb2 import CSR
 
@@ -330,7 +332,7 @@ class CertificateSigningRequest:
             public_key = Ed25519Key(public_key)
         elif key_type.startswith("ecdsa-sha2"):
             public_key = ECDSAKey(public_key)
-        elif key_type == "ssh-dss":
+        elif key_type == "ssh-dss" and DSSKey is not None:
             public_key = DSSKey(public_key)
         else:
             raise NotImplementedError("Key type not supported: {}".format(key_type))

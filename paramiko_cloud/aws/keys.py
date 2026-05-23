@@ -120,8 +120,6 @@ class ECDSAKey(BaseKeyECDSA):
             The selected signing algorithm
         """
 
-        return (
-            {algo for _, algo in self._ALLOWED_ALGOS}
-            .intersection(supported_algos)
-            .pop()
-        )
+        return {algo for _, algo in self._ALLOWED_ALGOS}.intersection(
+            supported_algos
+        ).pop()

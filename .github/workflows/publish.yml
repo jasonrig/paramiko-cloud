@@ -24,8 +24,6 @@ jobs:
           python-version: "3.14"
       - name: Install uv
         uses: astral-sh/setup-uv@v4
-        with:
-          github-token: ""
       - name: Install build dependencies
         run: |
           uv sync --extra all --group build
@@ -63,7 +61,6 @@ jobs:
         with:
           verbose: true
           skip-existing: true
-          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
       - name: Publish distribution 📦 to PyPI
         if: startsWith(github.ref, 'refs/tags/')

@@ -1,6 +1,10 @@
 name: Publish package
 
-on: [push]
+on:
+  pull_request:
+    branches: [main]
+  push:
+    tags: ["*"]
 
 jobs:
   publish:
@@ -23,9 +27,33 @@ jobs:
       - name: Build protobufs
         run: |
           uv run python scripts/build_proto.py
+      - name: Set PR version for Test PyPI
+        if: github.event_name == 'pull_request'
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          uv run python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          pyproject = Path("pyproject.toml")
+          text = pyproject.read_text()
+          match = re.search(r'(?m)^version = "([^"]+)"$', text)
+          if match is None:
+              raise SystemExit("Unable to find project version in pyproject.toml")
+
+          base_version = match.group(1)
+          sha_number = int(os.environ["PR_HEAD_SHA"][:12], 16)
+          pr_version = f"{base_version}.dev{sha_number}"
+          pyproject.write_text(
+              text[: match.start(1)] + pr_version + text[match.end(1) :]
+          )
+          PY
       - name: Build a binary wheel and a source tarball
         run: uv build --sdist --wheel --out-dir dist/
       - name: Publish distribution 📦 to Test PyPI
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           verbose: true
@@ -33,7 +61,7 @@ jobs:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
       - name: Publish distribution 📦 to PyPI
-        if: startsWith(github.ref, 'refs/tags')
+        if: startsWith(github.ref, 'refs/tags/')
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}

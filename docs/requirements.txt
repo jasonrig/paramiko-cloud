@@ -1,4 +1,5 @@
 # Requirements for docs build
+sphinx
 paramiko
 cryptography
 boto3

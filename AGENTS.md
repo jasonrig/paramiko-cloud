@@ -22,6 +22,9 @@ Use `uv` for all local workflows.
 uv sync --extra all --group dev
 ```
 
+When using GitHub CLI (`gh`), escalate out of the sandbox so it can access the
+keyring-backed GitHub credentials.
+
 ## Required Build Step
 
 Some checks depend on generated protobuf files.

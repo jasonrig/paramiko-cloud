@@ -1,37 +1,22 @@
 gRPC
 ====
 
-Server implementation
----------------------
+The gRPC helper owns server setup and lifecycle. Application code still owns the
+``SignerServicer`` implementation and signing policy.
 
 .. automodule:: paramiko_cloud.grpc_server
    :members:
-   :undoc-members:
    :show-inheritance:
 
-Services
---------
-
-.. automodule:: paramiko_cloud.protobuf.rpc_pb2_grpc
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
-Protobuf messages
+Generated Modules
 -----------------
 
-.. autoclass:: paramiko_cloud.protobuf.csr_pb2.CSR
-   :members:
-   :undoc-members:
-   :show-inheritance:
+The protobuf and gRPC modules are generated into ``paramiko_cloud.protobuf`` by
+``scripts/build_proto.py``:
 
-.. autoclass:: paramiko_cloud.protobuf.rpc_pb2.CloudCertificateSigningRequest
-   :members:
-   :undoc-members:
-   :show-inheritance:
+* ``paramiko_cloud.protobuf.csr_pb2``
+* ``paramiko_cloud.protobuf.rpc_pb2``
+* ``paramiko_cloud.protobuf.rpc_pb2_grpc``
 
-.. autoclass:: paramiko_cloud.protobuf.rpc_pb2.CloudCertificateSigningResponse
-   :members:
-   :undoc-members:
-   :show-inheritance:
+They are not committed to the repository. Initialize the ``ssh-cert-proto``
+submodule and run the build script before importing them directly.

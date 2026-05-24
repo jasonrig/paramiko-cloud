@@ -6,15 +6,12 @@
 
 # -- Path setup --------------------------------------------------------------
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-import os
 import subprocess
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath(".."))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
 
 # -- Project information -----------------------------------------------------
@@ -33,6 +30,12 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
 ]
+
+autoclass_content = "both"
+autodoc_class_signature = "separated"
+autodoc_member_order = "bysource"
+autodoc_typehints = "description"
+autodoc_mock_imports = []
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -53,10 +56,30 @@ html_theme = "alabaster"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
+html_static_path = []
 
-# Build protobuf files
-subprocess.run(
-    ["python", "scripts/build_proto.py"],
-    cwd=os.path.realpath(os.path.join(os.path.dirname(__file__), "..")),
-)
+
+def _build_protobuf_sources() -> None:
+    """Generate protobuf modules when the proto submodule is available."""
+
+    proto_dir = ROOT / "ssh-cert-proto"
+    generated_files = list((ROOT / "paramiko_cloud" / "protobuf").glob("*_pb2*.py"))
+    if list(proto_dir.glob("*.proto")):
+        subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "build_proto.py")],
+            cwd=ROOT,
+            check=True,
+        )
+    elif not generated_files:
+        # Local checkouts may not have initialized the proto submodule yet.
+        # Mock generated modules so prose-only docs and API pages still build.
+        autodoc_mock_imports.extend(
+            [
+                "paramiko_cloud.protobuf.csr_pb2",
+                "paramiko_cloud.protobuf.rpc_pb2",
+                "paramiko_cloud.protobuf.rpc_pb2_grpc",
+            ]
+        )
+
+
+_build_protobuf_sources()

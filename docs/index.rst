@@ -1,92 +1,42 @@
-Welcome to Paramiko-Cloud's documentation!
-==========================================
+Paramiko-Cloud
+==============
 
-This project aims to extend Paramiko to provide SSH keys that
-are backed by cloud-based key management services. Further,
-SSH certificate signing capabilities are added that make
-implementation of SSH certificate authorities straightforward.
+Paramiko-Cloud extends Paramiko with ECDSA keys whose private material stays in
+cloud key management services. The provider key classes behave like Paramiko
+``ECDSAKey`` objects, so they can sign SSH data and issue OpenSSH certificates
+without exporting the private key.
 
-.. toctree::
-   api/keys
-   api/pki
-   api/grpc
+The package also includes a small PKI layer for building OpenSSH certificate
+signing requests, serializing those requests through protobuf, and returning
+certificate lines that can be saved as ``*-cert.pub`` files.
 
-Installation
-------------
-Install Paramiko-Cloud using pip:
-
-.. code-block:: bash
-
-   # Install with AWS support
-   pip install paramiko-cloud[aws]
-
-   # Install with Azure support
-   pip install paramiko-cloud[azure]
-
-   # Install with GCP support
-   pip install paramiko-cloud[gcp]
-
-Examples
+Features
 --------
 
-Amazon Web Services
-^^^^^^^^^^^^^^^^^^^
+* AWS KMS, Google Cloud KMS, and Azure Key Vault ECDSA signing keys.
+* OpenSSH user and host certificate generation.
+* Certificate options, extensions, principals, serials, key IDs, and validity
+  windows.
+* Protobuf serialization for signing requests.
+* A gRPC server wrapper for exposing certificate signing services.
 
-.. code-block:: python
+.. toctree::
+   :maxdepth: 2
+   :caption: User Guide
 
-   from paramiko_cloud.aws.keys import ECDSAKey
+   installation
+   usage
+   cloud-keys
+   grpc
 
-   ca_key = ECDSAKey(
-       "arn:aws:kms:ap-northeast-1:012345678901:key/e9a4e926-b826-46fe-840d-58d44f0c6a89",
-       region_name="ap-northeast-1"
-   )
-   client_key = RSAKey.generate(1024)
-   cert_string = ca_key.sign_certificate(
-       client_key,
-       ["test.user"]
-   ).cert_string()
+.. toctree::
+   :maxdepth: 2
+   :caption: API Reference
 
-Microsoft Azure
-^^^^^^^^^^^^^^^
+   api/index
 
-.. code-block:: python
-
-   from azure.identity import DefaultAzureCredential
-   from paramiko_cloud.azure.keys import ECDSAKey
-
-   credential = DefaultAzureCredential()
-
-   ca_key = ECDSAKey(
-       credential,
-       "https://your.vault.url/",
-       "key_name"
-   )
-   client_key = RSAKey.generate(1024)
-   cert_string = ca_key.sign_certificate(
-       client_key,
-       ["test.user"]
-   ).cert_string()
-
-Google Cloud Platform
-^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: python
-
-   from google.cloud import kms
-   from paramiko_cloud.gcp.keys import ECDSAKey
-
-   kms_client = kms.KeyManagementServiceClient()
-   key_name = "projects/PROJECT_NAME/locations/REGION_NAME/keyRings/YOUR_KEY_RING_NAME/cryptoKeys/YOUR_KEY_NAME/cryptoKeyVersions/YOUR_KEY_VERSION"
-
-   ca_key = ECDSAKey(kms_client, key_name)
-   client_key = RSAKey.generate(1024)
-   cert_string = ca_key.sign_certificate(
-       client_key,
-       ["test.user"]
-   ).cert_string()
-
-Indices and tables
-==================
+Indices and Tables
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`

@@ -14,7 +14,7 @@ try:
 except ImportError:  # pragma: no cover - only reached on newer Paramiko versions
     DSSKey = None
 
-from paramiko_cloud.protobuf.csr_pb2 import CSR  # type: ignore[attr-defined]
+from paramiko_cloud.protobuf.csr_pb2 import CSR
 
 
 class CertificateBlob(PublicBlob):
@@ -167,7 +167,7 @@ class CertificateExtensions(enum.Enum):
             The serialized enum value
         """
 
-        return getattr(CSR.Extensions, self.name)
+        return getattr(CSR.Extension, self.name)
 
     @classmethod
     def from_pb_enum(cls, value: int) -> "CertificateExtensions":
@@ -303,12 +303,12 @@ class CertificateSigningRequest:
         csr.validBefore = self.cert_params.valid_before
         for opt, val in self.cert_params.critical_opts:
             option_value = CSR.CriticalOptionValue()
-            option_value.type = opt.pb_enum()
+            option_value.type = cast(CSR.CriticalOption, opt.pb_enum())
             option_value.value = val
             csr.criticalOptions.append(option_value)
         for ext, val in self.cert_params.extensions:
             extension_value = CSR.ExtensionValue()
-            extension_value.type = ext.pb_enum()
+            extension_value.type = cast(CSR.Extension, ext.pb_enum())
             extension_value.value = val
             csr.extensions.append(extension_value)
         csr.publicKeyType = self.public_key.get_name()

@@ -3,7 +3,13 @@ from unittest import TestCase
 from cryptography.hazmat.primitives.asymmetric.ec import SECP256R1
 from paramiko import ECDSAKey, RSAKey
 
-from paramiko_cloud.pki import CertificateSigningRequest, CertificateParameters, DSSKey
+from paramiko_cloud.pki import (
+    CertificateExtensions,
+    CertificateParameters,
+    CertificateSigningRequest,
+    DSSKey,
+)
+from paramiko_cloud.protobuf.csr_pb2 import CSR
 
 rsa_key = RSAKey.generate(1024)
 ecdsa_key = ECDSAKey.generate(SECP256R1())
@@ -43,3 +49,13 @@ class PKITest(TestCase):
                 CertificateSigningRequest.from_proto(csr)
         else:
             CertificateSigningRequest.from_proto(csr)
+
+    def test_certificate_extensions_serialize_to_proto(self):
+        csr = CertificateSigningRequest(
+            rsa_key,
+            CertificateParameters(
+                extensions={CertificateExtensions.NO_TOUCH_REQUIRED: ""}
+            ),
+        ).to_proto()
+
+        self.assertEqual(CSR.Extension.NO_TOUCH_REQUIRED, csr.extensions[0].type)

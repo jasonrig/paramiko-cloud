@@ -44,6 +44,10 @@ packages = [
   "paramiko_cloud.protobuf",
 ]
 
+[tool.setuptools.package-data]
+paramiko_cloud = ["py.typed"]
+"paramiko_cloud.protobuf" = ["*.pyi"]
+
 [dependency-groups]
 dev = ["pytest", "pytest-cov", "ruff", "mypy"]
 build = ["build"]

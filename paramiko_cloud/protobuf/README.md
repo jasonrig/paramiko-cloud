@@ -1,7 +1,7 @@
 # Where are the source files?
 
-This directory contains generated protobuf Python source files, which are not version controlled. To build these files,
-run:
+This directory contains generated protobuf Python source and type stub files, which are not version controlled. To build
+these files, run:
 
 ```shell
 # Generate the protobuf classes gRPC stubs

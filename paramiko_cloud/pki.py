@@ -3,7 +3,7 @@ import datetime
 import enum
 import secrets
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, cast
 
 from paramiko import ECDSAKey, Ed25519Key, RSAKey
 from paramiko.message import Message
@@ -22,7 +22,7 @@ class CertificateBlob(PublicBlob):
     A signed SSH certificate
     """
 
-    def cert_string(self, comment: Optional[str] = None) -> str:
+    def cert_string(self, comment: str | None = None) -> str:
         """
         Render a string suitable for OpenSSH authorized_keys files
 
@@ -33,11 +33,7 @@ class CertificateBlob(PublicBlob):
             The public key string
         """
 
-        return "{key_type} {key_string} {comment}".format(
-            key_type=self.key_type,
-            key_string=base64.standard_b64encode(self.key_blob).decode(),
-            comment=comment or datetime.datetime.now().isoformat(),
-        )
+        return f"{self.key_type} {base64.standard_b64encode(self.key_blob).decode()} {comment or datetime.datetime.now(datetime.timezone.utc).isoformat()}"
 
 
 class CertificateType(enum.Enum):
@@ -142,7 +138,7 @@ class CertificateExtensions(enum.Enum):
     PERMIT_USER_RC = "permit-user-rc"
 
     @classmethod
-    def permit_all(cls) -> Dict["CertificateExtensions", str]:
+    def permit_all(cls) -> dict["CertificateExtensions", str]:
         """
         Convenience method to return a dict enabling all extensions
 
@@ -221,7 +217,7 @@ class CertificateParameters:
 
     def __init__(
         self,
-        valid_for: Optional[datetime.timedelta] = datetime.timedelta(hours=1),
+        valid_for: datetime.timedelta | None = datetime.timedelta(hours=1),
         **kwargs: object,
     ):
         now = int(time.time())
@@ -236,13 +232,13 @@ class CertificateParameters:
         self.serial = cast(int, kwargs.get("serial", 0))
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L85
-        self.principals = cast(List[str], kwargs.get("principals", []))
+        self.principals = cast(list[str], kwargs.get("principals", []))
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L86
         self.valid_after = cast(int, kwargs.get("valid_after", now))
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L87
-        valid_before = cast(Optional[int], kwargs.get("valid_before"))
+        valid_before = cast(int | None, kwargs.get("valid_before"))
         valid_for_seconds = int(valid_for.total_seconds()) if valid_for else 0
         self.valid_before = (
             valid_before
@@ -252,7 +248,7 @@ class CertificateParameters:
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L88
         critical_options = cast(
-            Dict[CertificateCriticalOptions, str], kwargs.get("critical_options", {})
+            dict[CertificateCriticalOptions, str], kwargs.get("critical_options", {})
         )
         self.critical_opts = sorted(
             critical_options.items(), key=lambda _opt: _opt[0].value
@@ -260,7 +256,7 @@ class CertificateParameters:
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L89
         extensions = cast(
-            Dict[CertificateExtensions, str], kwargs.get("extensions", {})
+            dict[CertificateExtensions, str], kwargs.get("extensions", {})
         )
         self.extensions = sorted(
             extensions.items(),
@@ -356,7 +352,7 @@ class CertificateSigningRequest:
         elif key_type == "ssh-dss" and DSSKey is not None:
             public_key = DSSKey(public_key)
         else:
-            raise NotImplementedError("Key type not supported: {}".format(key_type))
+            raise NotImplementedError(f"Key type not supported: {key_type}")
 
         return cls(public_key, params)
 
@@ -374,9 +370,7 @@ class CertificateSigningRequest:
 
     @staticmethod
     def _encode_options(
-        opts: List[
-            Tuple[Union[CertificateCriticalOptions, CertificateExtensions], str]
-        ],
+        opts: list[tuple[CertificateCriticalOptions | CertificateExtensions, str]],
     ) -> Message:
         """
         Encodes the certificate options and extensions into the required format
@@ -436,15 +430,11 @@ class CertificateSigningRequest:
 
         for opts in (
             cast(
-                List[
-                    Tuple[Union[CertificateCriticalOptions, CertificateExtensions], str]
-                ],
+                list[tuple[CertificateCriticalOptions | CertificateExtensions, str]],
                 self.cert_params.critical_opts,
             ),
             cast(
-                List[
-                    Tuple[Union[CertificateCriticalOptions, CertificateExtensions], str]
-                ],
+                list[tuple[CertificateCriticalOptions | CertificateExtensions, str]],
                 self.cert_params.extensions,
             ),
         ):
@@ -469,8 +459,8 @@ class CertificateSigningKeyMixin(PKey):
     def sign_certificate(
         self,
         pub_key: PKey,
-        principals: List[str],
-        extensions: Optional[Dict[CertificateExtensions, str]] = None,
+        principals: list[str],
+        extensions: dict[CertificateExtensions, str] | None = None,
         **kwargs: Any,
     ) -> CertificateBlob:
         """

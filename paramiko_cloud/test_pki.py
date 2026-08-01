@@ -24,9 +24,7 @@ class PKITest(TestCase):
 
         for key in keys:
             with self.subTest(
-                "CSR from {} key can be serialized and deserialized".format(
-                    key.get_name()
-                )
+                f"CSR from {key.get_name()} key can be serialized and deserialized"
             ):
                 csr = CertificateSigningRequest(key, CertificateParameters())
                 csr_reconstructed = CertificateSigningRequest.from_proto(csr.to_proto())

@@ -1,27 +1,27 @@
-from typing import Union, cast
+from typing import cast
 
 from azure.identity import (
-    DefaultAzureCredential,
+    AzureCliCredential,
     AzurePowerShellCredential,
-    InteractiveBrowserCredential,
     ChainedTokenCredential,
+    DefaultAzureCredential,
     EnvironmentCredential,
+    InteractiveBrowserCredential,
     ManagedIdentityCredential,
     SharedTokenCacheCredential,
-    AzureCliCredential,
     VisualStudioCodeCredential,
 )
 from azure.keyvault.keys import KeyClient
 from azure.keyvault.keys.crypto import CryptographyClient, SignatureAlgorithm
 from cryptography.hazmat.primitives.asymmetric.ec import (
     ECDSA,
-    EllipticCurvePublicNumbers,
+    SECP192R1,
+    SECP224R1,
     SECP256R1,
     SECP384R1,
     SECP521R1,
-    SECP224R1,
-    SECP192R1,
     EllipticCurve,
+    EllipticCurvePublicNumbers,
 )
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 
@@ -103,37 +103,35 @@ class ECDSAKey(BaseKeyECDSA):
 
     def __init__(
         self,
-        credential: Union[
-            DefaultAzureCredential,
-            AzurePowerShellCredential,
-            InteractiveBrowserCredential,
-            ChainedTokenCredential,
-            EnvironmentCredential,
-            ManagedIdentityCredential,
-            SharedTokenCacheCredential,
-            AzureCliCredential,
-            VisualStudioCodeCredential,
-        ],
+        credential: DefaultAzureCredential
+        | AzurePowerShellCredential
+        | InteractiveBrowserCredential
+        | ChainedTokenCredential
+        | EnvironmentCredential
+        | ManagedIdentityCredential
+        | SharedTokenCacheCredential
+        | AzureCliCredential
+        | VisualStudioCodeCredential,
         vault_url: str,
         key_name: str,
     ):
         vault_client = KeyClient(vault_url, credential=credential)
         pub_key = vault_client.get_key(key_name)
         assert pub_key.key_type in self._ALLOWED_ALGOS, (
-            "Unsupported signing algorithm: {}".format(pub_key.key_type)
+            f"Unsupported signing algorithm: {pub_key.key_type}"
         )
 
         jwk = pub_key.key
         assert jwk is not None, "Missing key material from Azure Key Vault."
-        curve_name = cast(str, getattr(jwk, "crv"))
+        curve_name = cast(str, getattr(jwk, "crv"))  # noqa: B009
 
-        assert curve_name in _CURVES, "Unsupported curve: {}".format(curve_name)
+        assert curve_name in _CURVES, f"Unsupported curve: {curve_name}"
 
         curve = _CURVES[curve_name]()  # type: ignore[abstract]
 
         verifying_key = EllipticCurvePublicNumbers(
-            int.from_bytes(cast(bytes, getattr(jwk, "x")), "big"),
-            int.from_bytes(cast(bytes, getattr(jwk, "y")), "big"),
+            int.from_bytes(cast(bytes, getattr(jwk, "x")), "big"),  # noqa: B009
+            int.from_bytes(cast(bytes, getattr(jwk, "y")), "big"),  # noqa: B009
             curve,
         ).public_key()
 

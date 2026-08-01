@@ -30,18 +30,14 @@ class TestECDSAKey(TestCase):
         exit_code, cert_details = parse_certificate(cert_string)
         self.assertEqual(
             cert_details.public_key,
-            "RSA-CERT SHA256:{}".format(sha256_fingerprint(client_key)),
+            f"RSA-CERT SHA256:{sha256_fingerprint(client_key)}",
         )
         self.assertEqual(
             cert_details.signing_ca,
-            "ECDSA SHA256:{} (using ecdsa-sha2-nistp{})".format(
-                sha256_fingerprint(ca_key), ca_key.ecdsa_curve.key_length
-            ),
+            f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})",
         )
         self.assertEqual(
             exit_code,
             0,
-            "Could not parse generated certificate with ssh-keygen, exit code {}".format(
-                exit_code
-            ),
+            f"Could not parse generated certificate with ssh-keygen, exit code {exit_code}",
         )

@@ -2,14 +2,13 @@ import base64
 import hashlib
 import subprocess
 import tempfile
-from typing import Dict, List, Tuple, Union
 
 from paramiko.pkey import PKey
 
 
 class ParsedCertificateResponse:
     def __init__(self, raw_output: str):
-        self._parameters: Dict[str, Union[str, List[str]]] = {}
+        self._parameters: dict[str, str | list[str]] = {}
         last_list_key = None
         last_list = []
         for line in raw_output.splitlines(keepends=False)[1:]:
@@ -66,19 +65,23 @@ class ParsedCertificateResponse:
         return self._parameters["Extensions"]
 
 
-def parse_certificate(cert_string: str) -> Tuple[int, ParsedCertificateResponse]:
+def parse_certificate(cert_string: str) -> tuple[int, ParsedCertificateResponse]:
     with tempfile.NamedTemporaryFile() as f:
         f.write(cert_string.encode())
         f.flush()
         try:
             # Python 3.7+
             result = subprocess.run(
-                ["ssh-keygen", "-L", "-f", f.name], capture_output=True
+                ["ssh-keygen", "-L", "-f", f.name],
+                capture_output=True,
+                check=False,
             )
         except TypeError:
             # Python 3.6
             result = subprocess.run(
-                ["ssh-keygen", "-L", "-f", f.name], stdout=subprocess.PIPE
+                ["ssh-keygen", "-L", "-f", f.name],
+                stdout=subprocess.PIPE,
+                check=False,
             )
         return result.returncode, ParsedCertificateResponse(result.stdout.decode())
 

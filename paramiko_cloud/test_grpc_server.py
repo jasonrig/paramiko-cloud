@@ -4,8 +4,8 @@ import grpc
 from paramiko.rsakey import RSAKey
 
 from paramiko_cloud.grpc_server import GRPCServer
-from paramiko_cloud.pki import CertificateSigningRequest, CertificateParameters
-from paramiko_cloud.protobuf import rpc_pb2_grpc, rpc_pb2
+from paramiko_cloud.pki import CertificateParameters, CertificateSigningRequest
+from paramiko_cloud.protobuf import rpc_pb2, rpc_pb2_grpc
 
 
 class SignerServicer(rpc_pb2_grpc.SignerServicer):

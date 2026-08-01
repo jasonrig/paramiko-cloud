@@ -1,9 +1,12 @@
 from typing import cast
 
-from cryptography.hazmat.primitives.asymmetric.ec import ECDSA, EllipticCurve
+from cryptography.hazmat.primitives.asymmetric.ec import (
+    ECDSA,
+    EllipticCurve,
+    EllipticCurvePublicKey,
+)
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from cryptography.hazmat.primitives.hashes import HashAlgorithm
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from google.cloud import kms
 from google.cloud.kms_v1 import Digest
@@ -74,7 +77,7 @@ class ECDSAKey(BaseKeyECDSA):
     def __init__(self, kms_client: kms.KeyManagementServiceClient, key_name: str):
         pub_key = kms_client.get_public_key(name=key_name)
         assert pub_key.algorithm.name in self._ALLOWED_ALGOS, (
-            "Unsupported signing algorithm: {}".format(pub_key.algorithm.name)
+            f"Unsupported signing algorithm: {pub_key.algorithm.name}"
         )
         verifying_key = cast(
             EllipticCurvePublicKey, load_pem_public_key(pub_key.pem.encode())

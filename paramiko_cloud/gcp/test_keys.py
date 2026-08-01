@@ -1,11 +1,10 @@
-from typing import Tuple
 from unittest import TestCase
 
-from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from google.cloud.kms_v1 import AsymmetricSignResponse, Digest
-from google.cloud.kms_v1.types.resources import PublicKey, CryptoKeyVersion
+from google.cloud.kms_v1.types.resources import CryptoKeyVersion, PublicKey
 from paramiko.rsakey import RSAKey
 
 from paramiko_cloud.gcp.keys import ECDSAKey
@@ -45,7 +44,7 @@ class MockKeyManagementServiceClient:
 
 
 class TestECDSAKey(TestCase):
-    ALL_SUPPORTED_ALGOS: Tuple[CryptoKeyVersion.CryptoKeyVersionAlgorithm] = (
+    ALL_SUPPORTED_ALGOS: tuple[CryptoKeyVersion.CryptoKeyVersionAlgorithm] = (
         CryptoKeyVersion.CryptoKeyVersionAlgorithm.EC_SIGN_P256_SHA256,
         CryptoKeyVersion.CryptoKeyVersionAlgorithm.EC_SIGN_P384_SHA384,
     )
@@ -54,7 +53,7 @@ class TestECDSAKey(TestCase):
 
     def test_key_from_cloud_can_sign(self):
         for algo in self.ALL_SUPPORTED_ALGOS:
-            with self.subTest("Using {}".format(algo.name)):
+            with self.subTest(f"Using {algo.name}"):
                 key = ECDSAKey(
                     MockKeyManagementServiceClient(self.TEST_KEY_NAME, algo), "test_key"
                 )
@@ -67,7 +66,7 @@ class TestECDSAKey(TestCase):
 
     def test_key_from_cloud_can_produce_valid_certificate(self):
         for algo in self.ALL_SUPPORTED_ALGOS:
-            with self.subTest("Using {}".format(algo.name)):
+            with self.subTest(f"Using {algo.name}"):
                 ca_key = ECDSAKey(
                     MockKeyManagementServiceClient(self.TEST_KEY_NAME, algo), "test_key"
                 )
@@ -78,18 +77,14 @@ class TestECDSAKey(TestCase):
                 exit_code, cert_details = parse_certificate(cert_string)
                 self.assertEqual(
                     cert_details.public_key,
-                    "RSA-CERT SHA256:{}".format(sha256_fingerprint(client_key)),
+                    f"RSA-CERT SHA256:{sha256_fingerprint(client_key)}",
                 )
                 self.assertEqual(
                     cert_details.signing_ca,
-                    "ECDSA SHA256:{} (using ecdsa-sha2-nistp{})".format(
-                        sha256_fingerprint(ca_key), ca_key.ecdsa_curve.key_length
-                    ),
+                    f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})",
                 )
                 self.assertEqual(
                     exit_code,
                     0,
-                    "Could not parse generated certificate with ssh-keygen, exit code {}".format(
-                        exit_code
-                    ),
+                    f"Could not parse generated certificate with ssh-keygen, exit code {exit_code}",
                 )

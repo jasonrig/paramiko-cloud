@@ -1,6 +1,6 @@
-from typing import Optional, cast
+from typing import cast
 
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey, ECDSA
+from cryptography.hazmat.primitives.asymmetric.ec import ECDSA, EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 from paramiko_cloud.base import BaseKeyECDSA, CloudSigningKey
@@ -28,7 +28,7 @@ class ECDSAKey(BaseKeyECDSA):
         password: An optional password to decrypt the private key
     """
 
-    def __init__(self, pem_private_key: bytes, password: Optional[bytes] = None):
+    def __init__(self, pem_private_key: bytes, password: bytes | None = None):
         private_key = cast(
             EllipticCurvePrivateKey, load_pem_private_key(pem_private_key, password)
         )

@@ -1,6 +1,5 @@
-from typing import Tuple
 from unittest import TestCase
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -19,8 +18,8 @@ def set_up_mocks(boto3_mock: Mock, curve: EllipticCurve, hash_algo: HashAlgorith
         format=serialization.PublicFormat.SubjectPublicKeyInfo,
     )
 
-    signing_algorithm_name = "ECDSA_SHA_{}".format(hash_algo.name[-3:])
-    key_spec_name = "ECC_NIST_P{}".format(curve.key_size)
+    signing_algorithm_name = f"ECDSA_SHA_{hash_algo.name[-3:]}"
+    key_spec_name = f"ECC_NIST_P{curve.key_size}"
 
     boto3_instance = boto3_mock.return_value
     boto3_instance.get_public_key.return_value = {
@@ -38,7 +37,7 @@ def set_up_mocks(boto3_mock: Mock, curve: EllipticCurve, hash_algo: HashAlgorith
 
 
 class TestECDSAKey(TestCase):
-    ALL_SUPPORTED_ALGOS: Tuple[Tuple[EllipticCurve, HashAlgorithm]] = (
+    ALL_SUPPORTED_ALGOS: tuple[tuple[EllipticCurve, HashAlgorithm]] = (
         (ec.SECP256R1(), hashes.SHA256()),
         (ec.SECP384R1(), hashes.SHA384()),
         (ec.SECP521R1(), hashes.SHA512()),
@@ -49,9 +48,7 @@ class TestECDSAKey(TestCase):
         from paramiko_cloud.aws.keys import ECDSAKey
 
         for curve, hash_ in self.ALL_SUPPORTED_ALGOS:
-            with self.subTest(
-                "Using curve {} and hash {}".format(curve.name, hash_.name)
-            ):
+            with self.subTest(f"Using curve {curve.name} and hash {hash_.name}"):
                 set_up_mocks(boto3_mock, curve, hash_)
                 key = ECDSAKey("test_key", region_name="ap-northeast-1")
                 signature = key.sign_ssh_data(b"hello world")
@@ -66,9 +63,7 @@ class TestECDSAKey(TestCase):
         from paramiko_cloud.aws.keys import ECDSAKey
 
         for curve, hash_ in self.ALL_SUPPORTED_ALGOS:
-            with self.subTest(
-                "Using curve {} and hash {}".format(curve.name, hash_.name)
-            ):
+            with self.subTest(f"Using curve {curve.name} and hash {hash_.name}"):
                 set_up_mocks(boto3_mock, curve, hash_)
                 ca_key = ECDSAKey("test_key", region_name="ap-northeast-1")
                 client_key = RSAKey.generate(1024)
@@ -78,18 +73,14 @@ class TestECDSAKey(TestCase):
                 exit_code, cert_details = parse_certificate(cert_string)
                 self.assertEqual(
                     cert_details.public_key,
-                    "RSA-CERT SHA256:{}".format(sha256_fingerprint(client_key)),
+                    f"RSA-CERT SHA256:{sha256_fingerprint(client_key)}",
                 )
                 self.assertEqual(
                     cert_details.signing_ca,
-                    "ECDSA SHA256:{} (using ecdsa-sha2-nistp{})".format(
-                        sha256_fingerprint(ca_key), ca_key.ecdsa_curve.key_length
-                    ),
+                    f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})",
                 )
                 self.assertEqual(
                     exit_code,
                     0,
-                    "Could not parse generated certificate with ssh-keygen, exit code {}".format(
-                        exit_code
-                    ),
+                    f"Could not parse generated certificate with ssh-keygen, exit code {exit_code}",
                 )

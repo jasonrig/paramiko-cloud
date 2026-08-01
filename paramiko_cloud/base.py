@@ -1,13 +1,14 @@
 import abc
 import base64
 import hashlib
-from datetime import datetime
-from typing import Any, Callable, IO, Optional, Tuple
+from collections.abc import Callable
+from datetime import datetime, timezone
+from typing import IO, Any
 
 from cryptography.hazmat.primitives.asymmetric.ec import (
     ECDSA,
-    EllipticCurvePublicKey,
     EllipticCurve,
+    EllipticCurvePublicKey,
 )
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from paramiko import ECDSAKey, Message
@@ -67,7 +68,7 @@ class BaseKeyECDSA(ECDSAKey, CertificateSigningKeyMixin):
     Base class for all cloud-backed ECDSA keys
     """
 
-    def __init__(self, vals: Tuple[CloudSigningKey, EllipticCurvePublicKey]):
+    def __init__(self, vals: tuple[CloudSigningKey, EllipticCurvePublicKey]):
         """
         Constructor
 
@@ -77,27 +78,25 @@ class BaseKeyECDSA(ECDSAKey, CertificateSigningKeyMixin):
         super().__init__(vals=vals)
 
     def write_private_key_file(
-        self, filename: str, password: Optional[str] = None
+        self, filename: str, password: str | None = None
     ) -> None:
         raise RuntimeError("Private key managed externally, cannot export")
 
-    def write_private_key(
-        self, file_obj: IO[str], password: Optional[str] = None
-    ) -> None:
+    def write_private_key(self, file_obj: IO[str], password: str | None = None) -> None:
         raise RuntimeError("Private key managed externally, cannot export")
 
     @classmethod
     def generate(
         cls,
-        curve: Optional[EllipticCurve] = None,
-        progress_func: Optional[Callable[..., Any]] = None,
-        bits: Optional[int] = None,
+        curve: EllipticCurve | None = None,
+        progress_func: Callable[..., Any] | None = None,
+        bits: int | None = None,
     ) -> "BaseKeyECDSA":
         raise RuntimeError(
             "Create new signing keys using the KMS client for your cloud provider"
         )
 
-    def pubkey_string(self, comment: Optional[str] = None) -> str:
+    def pubkey_string(self, comment: str | None = None) -> str:
         """
         Render a string suitable for OpenSSH authorized_keys files
 
@@ -110,8 +109,4 @@ class BaseKeyECDSA(ECDSAKey, CertificateSigningKeyMixin):
         key_bytes = self.asbytes()
         m = Message(self.asbytes())
         key_type = m.get_text()
-        return "{key_type} {pubkey_string} {comment}".format(
-            key_type=key_type,
-            pubkey_string=base64.standard_b64encode(key_bytes).decode(),
-            comment=comment or datetime.now().isoformat(),
-        )
+        return f"{key_type} {base64.standard_b64encode(key_bytes).decode()} {comment or datetime.now(timezone.utc).isoformat()}"

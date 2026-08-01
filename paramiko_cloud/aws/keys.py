@@ -1,4 +1,4 @@
-from typing import Any, Set, cast
+from typing import Any, cast
 
 import boto3
 from cryptography.hazmat.primitives.asymmetric.ec import (
@@ -109,7 +109,7 @@ class ECDSAKey(BaseKeyECDSA):
             )
         )
 
-    def _choose_signing_algo(self, supported_algos: Set[str]) -> str:
+    def _choose_signing_algo(self, supported_algos: set[str]) -> str:
         """
         Selects the appropriate signing algorithm based on the supported and offered signing algorithms
 

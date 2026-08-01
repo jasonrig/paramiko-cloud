@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Protocol, runtime_checkable
 
 from azure.identity import (
@@ -14,20 +15,22 @@ from azure.identity import (
 from azure.keyvault.keys import KeyClient
 from azure.keyvault.keys.crypto import CryptographyClient, SignatureAlgorithm
 from cryptography.hazmat.primitives.asymmetric.ec import (
-    ECDSA,
     SECP192R1,
     SECP224R1,
     SECP256R1,
     SECP384R1,
     SECP521R1,
     EllipticCurve,
+    EllipticCurvePublicKey,
     EllipticCurvePublicNumbers,
+    EllipticCurveSignatureAlgorithm,
 )
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
+from cryptography.utils import Buffer
 
 from paramiko_cloud.base import BaseKeyECDSA, CloudSigningKey
 
-_CURVES = {
+_CURVES: dict[str, Callable[[], EllipticCurve]] = {
     "P-256": SECP256R1,
     "P-384": SECP384R1,
     "P-521": SECP521R1,
@@ -51,11 +54,15 @@ class _AzureSigningKey(CloudSigningKey):
 
     Args:
         crypto_client: the Key Vault Cryptography Client authenticated to access the selected key
-        curve: the elliptic curve used for this key
+        public_key: the public key corresponding to the Key Vault key
     """
 
-    def __init__(self, crypto_client: CryptographyClient, curve: EllipticCurve):
-        super().__init__(curve)
+    def __init__(
+        self,
+        crypto_client: CryptographyClient,
+        public_key: EllipticCurvePublicKey,
+    ):
+        super().__init__(public_key)
         self.crypto_client = crypto_client
 
     def _signaure_algorithm(self) -> SignatureAlgorithm:
@@ -75,7 +82,11 @@ class _AzureSigningKey(CloudSigningKey):
         else:
             raise NotImplementedError("Unsupported EC signature algorithm")
 
-    def sign(self, data: bytes, signature_algorithm: ECDSA) -> bytes:
+    def sign(
+        self,
+        data: Buffer,
+        signature_algorithm: EllipticCurveSignatureAlgorithm,
+    ) -> bytes:
         """
         Calculate the signature for the given data
 
@@ -142,7 +153,7 @@ class ECDSAKey(BaseKeyECDSA):
 
         assert curve_name in _CURVES, f"Unsupported curve: {curve_name}"
 
-        curve = _CURVES[curve_name]()  # type: ignore[abstract]
+        curve = _CURVES[curve_name]()
 
         verifying_key = EllipticCurvePublicNumbers(
             int.from_bytes(jwk.x, "big"),
@@ -153,7 +164,7 @@ class ECDSAKey(BaseKeyECDSA):
         super().__init__(
             (
                 _AzureSigningKey(
-                    CryptographyClient(pub_key, credential), verifying_key.curve
+                    CryptographyClient(pub_key, credential), verifying_key
                 ),
                 verifying_key,
             )

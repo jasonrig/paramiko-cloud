@@ -3,21 +3,29 @@ import datetime
 import enum
 import secrets
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any, TypeVar
 
+import paramiko
 from paramiko import ECDSAKey, Ed25519Key, RSAKey
 from paramiko.message import Message
 from paramiko.pkey import PKey, PublicBlob
 
-try:
-    from paramiko import DSSKey
-except ImportError:  # pragma: no cover - only reached on newer Paramiko versions
-    DSSKey = None
-
 from paramiko_cloud.protobuf.csr_pb2 import CSR
 
 T = TypeVar("T")
+
+
+def _optional_pkey_type(
+    namespace: Mapping[str, object], name: str
+) -> type[PKey] | None:
+    candidate = namespace.get(name)
+    if isinstance(candidate, type) and issubclass(candidate, PKey):
+        return candidate
+    return None
+
+
+DSSKey = _optional_pkey_type(vars(paramiko), "DSSKey")
 
 
 def _require_type(value: object, expected: type[T], name: str) -> T:
@@ -384,19 +392,19 @@ class CertificateSigningRequest:
         )
 
         key_type: str = csr.publicKeyType
-        public_key = Message()
-        public_key.add_string(key_type)
-        public_key.add_bytes(csr.publicKey)
-        public_key.rewind()
+        public_key_message = Message()
+        public_key_message.add_string(key_type)
+        public_key_message.add_bytes(csr.publicKey)
+        public_key_message.rewind()
 
         if key_type == "ssh-rsa":
-            public_key = RSAKey(public_key)
+            public_key: PKey = RSAKey(public_key_message)
         elif key_type == "ssh-ed25519":
-            public_key = Ed25519Key(public_key)
+            public_key = Ed25519Key(public_key_message)
         elif key_type.startswith("ecdsa-sha2"):
-            public_key = ECDSAKey(public_key)
+            public_key = ECDSAKey(public_key_message)
         elif key_type == "ssh-dss" and DSSKey is not None:
-            public_key = DSSKey(public_key)
+            public_key = DSSKey(public_key_message)
         else:
             raise NotImplementedError(f"Key type not supported: {key_type}")
 

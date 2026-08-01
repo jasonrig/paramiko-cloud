@@ -2,11 +2,11 @@ from typing import Any
 
 import boto3
 from cryptography.hazmat.primitives.asymmetric.ec import (
-    ECDSA,
-    EllipticCurve,
     EllipticCurvePublicKey,
+    EllipticCurveSignatureAlgorithm,
 )
 from cryptography.hazmat.primitives.serialization import load_der_public_key
+from cryptography.utils import Buffer
 
 from paramiko_cloud.base import BaseKeyECDSA, CloudSigningKey
 
@@ -17,7 +17,11 @@ class _AWSSigningKey(CloudSigningKey):
     """
 
     def __init__(
-        self, client: Any, key_id: str, signing_algo: str, curve: EllipticCurve
+        self,
+        client: Any,
+        key_id: str,
+        signing_algo: str,
+        public_key: EllipticCurvePublicKey,
     ) -> None:
         """
         Constructor
@@ -26,15 +30,19 @@ class _AWSSigningKey(CloudSigningKey):
             client: the AWS KMS client from boto3
             key_id: the AWS KMS key id
             signing_algo: the signing algorithm to use
-            curve: the elliptic curve used for this key
+            public_key: the public key corresponding to the KMS key
         """
 
-        super().__init__(curve)
+        super().__init__(public_key)
         self.client = client
         self.key_id = key_id
         self.signing_algo = signing_algo
 
-    def sign(self, data: bytes, signature_algorithm: ECDSA) -> bytes:
+    def sign(
+        self,
+        data: Buffer,
+        signature_algorithm: EllipticCurveSignatureAlgorithm,
+    ) -> bytes:
         """
         Calculate the signature for the given data
 
@@ -103,7 +111,7 @@ class ECDSAKey(BaseKeyECDSA):
                     client,
                     key_id,
                     self._choose_signing_algo(set(pub_key["SigningAlgorithms"])),
-                    verifying_key.curve,
+                    verifying_key,
                 ),
                 verifying_key,
             )

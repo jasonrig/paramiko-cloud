@@ -1,11 +1,12 @@
 from cryptography.hazmat.primitives.asymmetric.ec import (
     ECDSA,
-    EllipticCurve,
     EllipticCurvePublicKey,
+    EllipticCurveSignatureAlgorithm,
 )
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from cryptography.hazmat.primitives.hashes import HashAlgorithm
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
+from cryptography.utils import Buffer
 from google.cloud import kms
 from google.cloud.kms_v1 import Digest
 
@@ -18,20 +19,24 @@ class _GCPSigningKey(CloudSigningKey):
     Args:
         kms_client: a KMS client that can access the selected key
         key_name: the name of the key
-        curve: the elliptic curve used for this key
+        public_key: the public key corresponding to the KMS key
     """
 
     def __init__(
         self,
         kms_client: kms.KeyManagementServiceClient,
         key_name: str,
-        curve: EllipticCurve,
+        public_key: EllipticCurvePublicKey,
     ):
-        super().__init__(curve)
+        super().__init__(public_key)
         self.client = kms_client
         self.key_name = key_name
 
-    def sign(self, data: bytes, signature_algorithm: ECDSA) -> bytes:
+    def sign(
+        self,
+        data: Buffer,
+        signature_algorithm: EllipticCurveSignatureAlgorithm,
+    ) -> bytes:
         """
         Calculate the signature for the given data
 
@@ -42,6 +47,8 @@ class _GCPSigningKey(CloudSigningKey):
         Returns:
             The DER formatted signature
         """
+        if not isinstance(signature_algorithm, ECDSA):
+            raise TypeError("GCP KMS keys require an ECDSA signature algorithm")
         if isinstance(signature_algorithm.algorithm, Prehashed):
             algorithm: HashAlgorithm = signature_algorithm.algorithm._algorithm
         else:
@@ -82,7 +89,7 @@ class ECDSAKey(BaseKeyECDSA):
             raise TypeError("GCP KMS public key is not an elliptic curve key")
         super().__init__(
             (
-                _GCPSigningKey(kms_client, pub_key.name, verifying_key.curve),
+                _GCPSigningKey(kms_client, pub_key.name, verifying_key),
                 verifying_key,
             )
         )

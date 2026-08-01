@@ -1,38 +1,90 @@
-import abc
 import base64
 import hashlib
+import os
+from abc import abstractmethod
 from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import IO, Any
+from typing import Any, Protocol
 
 from cryptography.hazmat.primitives.asymmetric.ec import (
+    ECDH,
     ECDSA,
     EllipticCurve,
+    EllipticCurvePrivateKey,
+    EllipticCurvePrivateNumbers,
     EllipticCurvePublicKey,
+    EllipticCurveSignatureAlgorithm,
 )
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    KeySerializationEncryption,
+    PrivateFormat,
+)
+from cryptography.utils import Buffer
 from paramiko import ECDSAKey, Message
+from paramiko.pkey import PEM, FileFormat
 
 from paramiko_cloud.pki import CertificateSigningKeyMixin
 
 
-class CloudSigningKey(abc.ABC):
+class _SupportsWrite(Protocol):
+    def write(self, data: str) -> object: ...
+
+
+class CloudSigningKey(EllipticCurvePrivateKey):
     """
     Base class for all cloud KMS-backed signing keys
     """
 
-    def __init__(self, curve: EllipticCurve):
+    def __init__(self, public_key: EllipticCurvePublicKey):
         """
         Constructor
 
         Args:
-            curve: the elliptic curve used for this key
+            public_key: the public key corresponding to the cloud-managed key
         """
 
-        self.curve = curve
+        self._public_key = public_key
+
+    @property
+    def curve(self) -> EllipticCurve:
+        return self._public_key.curve
+
+    @property
+    def key_size(self) -> int:
+        return self.curve.key_size
+
+    def public_key(self) -> EllipticCurvePublicKey:
+        return self._public_key
+
+    def __copy__(self) -> "CloudSigningKey":
+        return self
+
+    def __deepcopy__(self, memo: dict[object, object]) -> "CloudSigningKey":
+        return self
+
+    def exchange(
+        self, algorithm: ECDH, peer_public_key: EllipticCurvePublicKey
+    ) -> bytes:
+        raise RuntimeError("Key exchange is unavailable for cloud-managed keys")
+
+    def private_numbers(self) -> EllipticCurvePrivateNumbers:
+        raise RuntimeError("Private key material is managed externally")
+
+    def private_bytes(
+        self,
+        encoding: Encoding,
+        format: PrivateFormat,
+        encryption_algorithm: KeySerializationEncryption,
+    ) -> bytes:
+        raise RuntimeError("Private key material is managed externally")
 
     @staticmethod
-    def digest(data: bytes, signature_algorithm: ECDSA) -> bytes:
+    def digest(
+        data: Buffer,
+        signature_algorithm: EllipticCurveSignatureAlgorithm,
+    ) -> bytes:
         """
         Calculates the hash of the given data according to the given elliptic curve key
 
@@ -43,12 +95,19 @@ class CloudSigningKey(abc.ABC):
         Returns:
             The hash of the data
         """
+        if not isinstance(signature_algorithm, ECDSA):
+            raise TypeError("Cloud-managed keys require an ECDSA signature algorithm")
         algorithm = signature_algorithm.algorithm
         if isinstance(algorithm, Prehashed):
             algorithm = algorithm._algorithm
         return getattr(hashlib, algorithm.name)(data).digest()
 
-    def sign(self, data: bytes, signature_algorithm: ECDSA) -> bytes:
+    @abstractmethod
+    def sign(
+        self,
+        data: Buffer,
+        signature_algorithm: EllipticCurveSignatureAlgorithm,
+    ) -> bytes:
         """
         Calculate the signature for the given data
 
@@ -78,11 +137,19 @@ class BaseKeyECDSA(ECDSAKey, CertificateSigningKeyMixin):
         super().__init__(vals=vals)
 
     def write_private_key_file(
-        self, filename: str, password: str | None = None
+        self,
+        filename: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        password: str | None = None,
+        file_format: FileFormat = PEM,
     ) -> None:
         raise RuntimeError("Private key managed externally, cannot export")
 
-    def write_private_key(self, file_obj: IO[str], password: str | None = None) -> None:
+    def write_private_key(
+        self,
+        file_obj: _SupportsWrite,
+        password: str | None = None,
+        file_format: FileFormat = PEM,
+    ) -> None:
         raise RuntimeError("Private key managed externally, cannot export")
 
     @classmethod

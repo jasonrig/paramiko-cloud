@@ -1,6 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
+from azure.identity import EnvironmentCredential
 from azure.keyvault.keys import KeyVaultKey
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -12,6 +13,7 @@ from cryptography.hazmat.primitives.asymmetric.utils import (
 from cryptography.hazmat.primitives.hashes import HashAlgorithm
 from paramiko.rsakey import RSAKey
 
+from paramiko_cloud.base import BaseKeyECDSA
 from tests.helpers import parse_certificate, sha256_fingerprint
 
 
@@ -51,7 +53,7 @@ def set_up_mocks(
 
 
 class TestECDSAKey(TestCase):
-    ALL_SUPPORTED_ALGOS: tuple[tuple[EllipticCurve, HashAlgorithm]] = (
+    ALL_SUPPORTED_ALGOS: tuple[tuple[EllipticCurve, HashAlgorithm], ...] = (
         (ec.SECP256R1(), hashes.SHA256()),
         (ec.SECP384R1(), hashes.SHA384()),
         (ec.SECP521R1(), hashes.SHA512()),
@@ -75,7 +77,11 @@ class TestECDSAKey(TestCase):
                     hash_,
                     self.TEST_KEY_NAME,
                 )
-                key = ECDSAKey(None, None, "test_key")
+                key = ECDSAKey(
+                    EnvironmentCredential(),
+                    "https://test-vault.vault.azure.net",
+                    "test_key",
+                )
                 signature = key.sign_ssh_data(b"hello world")
                 signature.rewind()
                 self.assertTrue(
@@ -99,7 +105,11 @@ class TestECDSAKey(TestCase):
                     hash_,
                     self.TEST_KEY_NAME,
                 )
-                ca_key = ECDSAKey(None, None, "test_key")
+                ca_key = ECDSAKey(
+                    EnvironmentCredential(),
+                    "https://test-vault.vault.azure.net",
+                    "test_key",
+                )
                 client_key = RSAKey.generate(1024)
                 cert_string = ca_key.sign_certificate(
                     client_key, ["test.user"]
@@ -111,10 +121,15 @@ class TestECDSAKey(TestCase):
                 )
                 self.assertEqual(
                     cert_details.signing_ca,
-                    f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})",
+                    self._signing_ca(ca_key),
                 )
                 self.assertEqual(
                     exit_code,
                     0,
                     f"Could not parse generated certificate with ssh-keygen, exit code {exit_code}",
                 )
+
+    @staticmethod
+    def _signing_ca(ca_key: BaseKeyECDSA) -> str:
+        assert ca_key.ecdsa_curve is not None
+        return f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})"

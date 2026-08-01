@@ -1,3 +1,4 @@
+import copy
 from unittest import TestCase
 
 from cryptography.hazmat.primitives import serialization
@@ -23,6 +24,27 @@ class TestECDSAKey(TestCase):
             key.verify_ssh_sig(b"hello world", signature), "Signature is invalid"
         )
 
+    def test_cloud_private_key_adapter(self):
+        key = ECDSAKey(private_key)
+        signing_key = key.signing_key
+
+        self.assertIs(signing_key.public_key(), key.verifying_key)
+        self.assertEqual(signing_key.curve, key.verifying_key.curve)
+        self.assertEqual(signing_key.key_size, key.verifying_key.key_size)
+        self.assertIs(copy.copy(signing_key), signing_key)
+        self.assertIs(copy.deepcopy(signing_key), signing_key)
+
+        with self.assertRaises(RuntimeError):
+            signing_key.exchange(ec.ECDH(), signing_key.public_key())
+        with self.assertRaises(RuntimeError):
+            signing_key.private_numbers()
+        with self.assertRaises(RuntimeError):
+            signing_key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            )
+
     def test_key_from_cloud_can_produce_valid_certificate(self):
         ca_key = ECDSAKey(private_key)
         client_key = RSAKey.generate(1024)
@@ -32,6 +54,7 @@ class TestECDSAKey(TestCase):
             cert_details.public_key,
             f"RSA-CERT SHA256:{sha256_fingerprint(client_key)}",
         )
+        assert ca_key.ecdsa_curve is not None
         self.assertEqual(
             cert_details.signing_ca,
             f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})",

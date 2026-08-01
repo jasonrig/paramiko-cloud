@@ -7,14 +7,13 @@ from google.cloud.kms_v1 import AsymmetricSignResponse, Digest
 from google.cloud.kms_v1.types.resources import CryptoKeyVersion, PublicKey
 from paramiko.rsakey import RSAKey
 
+from paramiko_cloud.base import BaseKeyECDSA
 from paramiko_cloud.gcp.keys import ECDSAKey
 from tests.helpers import parse_certificate, sha256_fingerprint
 
 
 class MockKeyManagementServiceClient:
-    def __init__(
-        self, expected_key_name, algo: CryptoKeyVersion.CryptoKeyVersionAlgorithm
-    ):
+    def __init__(self, expected_key_name: str, algo: int):
         self.expected_key_name = expected_key_name
         self.algo = algo
         if algo == CryptoKeyVersion.CryptoKeyVersionAlgorithm.EC_SIGN_P256_SHA256:
@@ -44,7 +43,7 @@ class MockKeyManagementServiceClient:
 
 
 class TestECDSAKey(TestCase):
-    ALL_SUPPORTED_ALGOS: tuple[CryptoKeyVersion.CryptoKeyVersionAlgorithm] = (
+    ALL_SUPPORTED_ALGOS: tuple[int, ...] = (
         CryptoKeyVersion.CryptoKeyVersionAlgorithm.EC_SIGN_P256_SHA256,
         CryptoKeyVersion.CryptoKeyVersionAlgorithm.EC_SIGN_P384_SHA384,
     )
@@ -81,10 +80,15 @@ class TestECDSAKey(TestCase):
                 )
                 self.assertEqual(
                     cert_details.signing_ca,
-                    f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})",
+                    self._signing_ca(ca_key),
                 )
                 self.assertEqual(
                     exit_code,
                     0,
                     f"Could not parse generated certificate with ssh-keygen, exit code {exit_code}",
                 )
+
+    @staticmethod
+    def _signing_ca(ca_key: BaseKeyECDSA) -> str:
+        assert ca_key.ecdsa_curve is not None
+        return f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})"

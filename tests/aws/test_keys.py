@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from cryptography.hazmat.primitives.hashes import HashAlgorithm
 from paramiko.rsakey import RSAKey
 
+from paramiko_cloud.base import BaseKeyECDSA
 from tests.helpers import parse_certificate, sha256_fingerprint
 
 
@@ -37,7 +38,7 @@ def set_up_mocks(boto3_mock: Mock, curve: EllipticCurve, hash_algo: HashAlgorith
 
 
 class TestECDSAKey(TestCase):
-    ALL_SUPPORTED_ALGOS: tuple[tuple[EllipticCurve, HashAlgorithm]] = (
+    ALL_SUPPORTED_ALGOS: tuple[tuple[EllipticCurve, HashAlgorithm], ...] = (
         (ec.SECP256R1(), hashes.SHA256()),
         (ec.SECP384R1(), hashes.SHA384()),
         (ec.SECP521R1(), hashes.SHA512()),
@@ -77,10 +78,15 @@ class TestECDSAKey(TestCase):
                 )
                 self.assertEqual(
                     cert_details.signing_ca,
-                    f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})",
+                    self._signing_ca(ca_key),
                 )
                 self.assertEqual(
                     exit_code,
                     0,
                     f"Could not parse generated certificate with ssh-keygen, exit code {exit_code}",
                 )
+
+    @staticmethod
+    def _signing_ca(ca_key: BaseKeyECDSA) -> str:
+        assert ca_key.ecdsa_curve is not None
+        return f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})"

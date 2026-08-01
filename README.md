@@ -29,5 +29,5 @@ uv run pytest --cov=./ --cov-report=xml
 uv run python scripts/build_proto.py
 uv run ruff check .
 uv run ruff format . --check
-uv run mypy paramiko_cloud
+uv run mypy paramiko_cloud tests
 ```

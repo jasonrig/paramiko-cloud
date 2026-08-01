@@ -8,20 +8,17 @@ from paramiko_cloud.pki import (
     CertificateParameters,
     CertificateSigningRequest,
     DSSKey,
+    _optional_pkey_type,
 )
 from paramiko_cloud.protobuf.csr_pb2 import CSR
 
 rsa_key = RSAKey.generate(1024)
 ecdsa_key = ECDSAKey.generate(SECP256R1())
-dss_key = DSSKey.generate(1024) if DSSKey is not None else None
 
 
 class PKITest(TestCase):
     def test_certificate_signing_request_serializable(self):
         keys = [rsa_key, ecdsa_key]
-        if dss_key is not None:
-            keys.append(dss_key)
-
         for key in keys:
             with self.subTest(
                 f"CSR from {key.get_name()} key can be serialized and deserialized"
@@ -47,6 +44,11 @@ class PKITest(TestCase):
                 CertificateSigningRequest.from_proto(csr)
         else:
             CertificateSigningRequest.from_proto(csr)
+
+    def test_optional_pkey_type_discovery(self):
+        self.assertIs(_optional_pkey_type({"DSSKey": RSAKey}, "DSSKey"), RSAKey)
+        self.assertIsNone(_optional_pkey_type({}, "DSSKey"))
+        self.assertIsNone(_optional_pkey_type({"DSSKey": object}, "DSSKey"))
 
     def test_certificate_extensions_serialize_to_proto(self):
         csr = CertificateSigningRequest(

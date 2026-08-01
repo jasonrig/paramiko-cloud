@@ -45,12 +45,12 @@ Run from repo root:
 ```bash
 uv run ruff check .
 uv run ruff format . --check
-uv run mypy paramiko_cloud
+uv run mypy paramiko_cloud tests
 uv run pytest --cov=./ --cov-report=xml
 ```
 
 Important:
-- Use `uv run mypy paramiko_cloud` (not `uv run mypy .`) to match CI scope.
+- Use `uv run mypy paramiko_cloud tests` (not `uv run mypy .`) to match CI scope.
 
 ## Editing Guardrails
 
@@ -64,8 +64,8 @@ Important:
 - Search code: `rg "pattern" paramiko_cloud scripts`
 - List files: `rg --files`
 - Focused tests:
-  - `uv run pytest paramiko_cloud/test_pki.py -q`
-  - `uv run pytest paramiko_cloud/test_grpc_server.py -q`
+  - `uv run pytest tests/test_pki.py -q`
+  - `uv run pytest tests/test_grpc_server.py -q`
 
 ## Commit Hygiene
 

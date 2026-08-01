@@ -39,7 +39,8 @@ class GRPCServerTest(TestCase):
             req.kmsKeyId = "key id"
             req.signingRequestPayload.CopyFrom(
                 CertificateSigningRequest(
-                    RSAKey.generate(1024), CertificateParameters()
+                    RSAKey.generate(1024),
+                    CertificateParameters(principals=["test.user"]),
                 ).to_proto()
             )
             resp = stub.SignCertificate(req)

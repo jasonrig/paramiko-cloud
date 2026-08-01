@@ -1,0 +1,12 @@
+services:
+  openssh:
+    build:
+      context: .
+    ports:
+      - target: 22
+        host_ip: 127.0.0.1
+    volumes:
+      - type: bind
+        source: ${OPENSSH_TEST_CA_PUBLIC_KEY}
+        target: /etc/ssh/trusted_user_ca_keys
+        read_only: true

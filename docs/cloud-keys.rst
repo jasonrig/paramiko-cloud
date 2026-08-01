@@ -6,6 +6,11 @@ implementation. The private key remains inside the provider KMS. Paramiko-Cloud
 loads the public key, maps the provider signing API to Paramiko's signing
 interface, and returns DER-encoded ECDSA signatures to Paramiko.
 
+Paramiko-Cloud intentionally implements only ECDSA certificate-authority keys.
+Some providers expose RSA signing services, but this package does not wrap them
+and rejects RSA certificate-authority keys. This does not prevent an RSA public
+key from being the subject of a certificate signed by an ECDSA CA.
+
 Cloud-backed keys can:
 
 * sign SSH data through ``sign_ssh_data``;

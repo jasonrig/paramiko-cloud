@@ -33,6 +33,10 @@ Enums
    :members:
    :show-inheritance:
 
+.. autoclass:: paramiko_cloud.pki.CertificateKeyTypeFormat
+   :members:
+   :show-inheritance:
+
 .. autoclass:: paramiko_cloud.pki.CertificateCriticalOptions
    :members:
    :show-inheritance:

@@ -93,7 +93,8 @@ Common parameters are:
      - No critical options
    * - ``extensions``
      - OpenSSH extensions.
-     - All supported extensions enabled by ``sign_certificate``
+     - All supported extensions for user certificates; none for host
+       certificates
 
 The certificate also includes a nonce, the subject public key, the CA public
 key, and a CA signature over the preceding certificate fields. Paramiko-Cloud
@@ -121,11 +122,55 @@ Critical option values carry option-specific data:
 
    critical_options = {
        CertificateCriticalOptions.SOURCE_ADDRESS: "10.0.0.0/8,192.0.2.0/24",
+       CertificateCriticalOptions.VERIFY_REQUIRED: "",
    }
 
-OpenSSH treats an empty principals list as valid for any principal of the
-certificate type. Prefer explicit principals for normal user and host
-certificates.
+``verify-required`` and all standard extensions are flag values and must use an
+empty string. ``force-command`` and ``source-address`` carry textual values,
+which Paramiko-Cloud encodes as nested SSH strings.
+
+Every certificate must contain at least one principal. Paramiko-Cloud raises
+``ValueError`` when ``principals`` is omitted or empty.
+
+Certificate Key Type Names
+--------------------------
+
+By default, Paramiko-Cloud emits the established OpenSSH vendor names such as
+``ssh-rsa-cert-v01@openssh.com``. These names remain the interoperable choice:
+OpenSSH 10.2 and OpenSSH 10.3, including the version packaged by Alpine 3.24.1,
+do not yet accept the new standard names from ``draft-ietf-sshm-cert-01``.
+
+The draft-standard names are available as an explicit issuer-side option:
+
+.. code-block:: python
+
+   from paramiko_cloud.pki import CertificateKeyTypeFormat
+
+   cert = ca_key.sign_certificate(
+       subject_key,
+       principals=["alice"],
+       key_type_format=CertificateKeyTypeFormat.STANDARD,
+   )
+
+This emits names such as ``ssh-rsa-cert``. Use ``STANDARD`` only when every
+consumer supports the draft names. The naming choice is made when the issuer
+signs the certificate and is not serialized in the protobuf CSR.
+
+Supported Key Types
+-------------------
+
+RSA, ECDSA, and Ed25519 may be used as certificate subject keys through
+Paramiko's corresponding key implementations. DSS remains conditional on
+whether the installed Paramiko version exposes it.
+
+Ed448 certificate fields are defined by the draft, but Paramiko 5.0 does not
+provide an Ed448 key primitive. Paramiko-Cloud accepts ``ssh-ed448`` only when
+the installed Paramiko version exposes ``Ed448Key``; otherwise it rejects the
+CSR instead of implementing a second key abstraction outside Paramiko.
+
+The cloud-backed certificate-authority implementations supplied by
+Paramiko-Cloud are ECDSA keys. RSA subject keys remain supported, but an RSA key
+cannot be used as the certificate authority.
 
 Signing a Host Certificate
 --------------------------
@@ -151,7 +196,6 @@ the hostnames or address names that should validate against the host key.
        type=CertificateType.HOST,
        key_id="web-01",
        valid_for=timedelta(days=7),
-       extensions={},
    )
 
    host_cert_line = host_cert.cert_string("web-01.example.com")

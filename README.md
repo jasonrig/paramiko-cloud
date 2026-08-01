@@ -31,3 +31,43 @@ uv run ruff check .
 uv run ruff format . --check
 uv run mypy paramiko_cloud tests
 ```
+
+## OpenSSH integration tests
+
+The integration harness starts a disposable OpenSSH server in Docker, configures
+it to trust a CA backed by the dummy signing service, sends certificate signing
+requests through gRPC/protobuf, and attempts real SSH authentication with the
+issued certificates.
+
+Prerequisites:
+
+- Docker with Compose v2
+- An OpenSSH client providing `ssh`
+- `uv`
+
+Run the complete integration workflow locally:
+
+```shell
+./scripts/run_openssh_integration.sh
+```
+
+The harness assigns an ephemeral loopback port and removes its containers and
+volumes after the test session. The same command sequence runs in the
+`OpenSSH integration` GitHub Actions workflow on Ubuntu.
+
+## Standards-convergence tests
+
+Tests marked `standards` assert the behavior described by
+[`draft-ietf-sshm-cert-01`](https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html).
+They are regular assertions rather than expected failures, so a future
+standards regression fails the corresponding test and CI job directly.
+
+Run the fast standards checks, which use `ssh-keygen -L` as an independent
+certificate-format parser where possible:
+
+```shell
+uv run pytest -m standards tests/test_draft_compliance.py -vv
+```
+
+The Docker integration command also runs standards cases that require a real
+OpenSSH authentication decision.

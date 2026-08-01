@@ -34,16 +34,17 @@ class TestECDSAKey(TestCase):
         self.assertIs(copy.copy(signing_key), signing_key)
         self.assertIs(copy.deepcopy(signing_key), signing_key)
 
+        exchange_algorithm = ec.ECDH()
+        peer_public_key = signing_key.public_key()
         with self.assertRaises(RuntimeError):
-            signing_key.exchange(ec.ECDH(), signing_key.public_key())
+            signing_key.exchange(exchange_algorithm, peer_public_key)
         with self.assertRaises(RuntimeError):
             signing_key.private_numbers()
+        encoding = serialization.Encoding.PEM
+        private_format = serialization.PrivateFormat.PKCS8
+        encryption = serialization.NoEncryption()
         with self.assertRaises(RuntimeError):
-            signing_key.private_bytes(
-                serialization.Encoding.PEM,
-                serialization.PrivateFormat.PKCS8,
-                serialization.NoEncryption(),
-            )
+            signing_key.private_bytes(encoding, private_format, encryption)
 
     def test_key_from_cloud_can_produce_valid_certificate(self):
         ca_key = ECDSAKey(private_key)

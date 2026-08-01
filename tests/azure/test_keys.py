@@ -12,7 +12,7 @@ from cryptography.hazmat.primitives.asymmetric.utils import (
 from cryptography.hazmat.primitives.hashes import HashAlgorithm
 from paramiko.rsakey import RSAKey
 
-from paramiko_cloud.test_helpers import parse_certificate, sha256_fingerprint
+from tests.helpers import parse_certificate, sha256_fingerprint
 
 
 class _SigningResponse:

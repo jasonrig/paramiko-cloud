@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from cryptography.hazmat.primitives.hashes import HashAlgorithm
 from paramiko.rsakey import RSAKey
 
-from paramiko_cloud.test_helpers import parse_certificate, sha256_fingerprint
+from tests.helpers import parse_certificate, sha256_fingerprint
 
 
 def set_up_mocks(boto3_mock: Mock, curve: EllipticCurve, hash_algo: HashAlgorithm):

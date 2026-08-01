@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from paramiko.rsakey import RSAKey
 
 from paramiko_cloud.dummy.keys import ECDSAKey
-from paramiko_cloud.test_helpers import parse_certificate, sha256_fingerprint
+from tests.helpers import parse_certificate, sha256_fingerprint
 
 private_key = ec.generate_private_key(ec.SECP256R1()).private_bytes(
     encoding=serialization.Encoding.PEM,

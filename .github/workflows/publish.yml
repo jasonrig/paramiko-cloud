@@ -26,16 +26,16 @@ jobs:
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       - name: Install build dependencies
         run: |
-          uv sync --extra all --group build
+          uv sync --frozen --no-build --no-install-project --extra all --group build
       - name: Build protobufs
         run: |
-          uv run python scripts/build_proto.py
+          uv run --frozen --no-build --no-sync python scripts/build_proto.py
       - name: Set PR version for Test PyPI
         if: github.event_name == 'pull_request'
         env:
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          uv run python - <<'PY'
+          uv run --frozen --no-build --no-sync python - <<'PY'
           import os
           import re
           from pathlib import Path

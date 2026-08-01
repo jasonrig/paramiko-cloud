@@ -1,33 +1,36 @@
-from typing import Union, cast
+from collections.abc import Callable
+from typing import Protocol, runtime_checkable
 
 from azure.identity import (
-    DefaultAzureCredential,
+    AzureCliCredential,
     AzurePowerShellCredential,
-    InteractiveBrowserCredential,
     ChainedTokenCredential,
+    DefaultAzureCredential,
     EnvironmentCredential,
+    InteractiveBrowserCredential,
     ManagedIdentityCredential,
     SharedTokenCacheCredential,
-    AzureCliCredential,
     VisualStudioCodeCredential,
 )
 from azure.keyvault.keys import KeyClient
 from azure.keyvault.keys.crypto import CryptographyClient, SignatureAlgorithm
 from cryptography.hazmat.primitives.asymmetric.ec import (
-    ECDSA,
-    EllipticCurvePublicNumbers,
+    SECP192R1,
+    SECP224R1,
     SECP256R1,
     SECP384R1,
     SECP521R1,
-    SECP224R1,
-    SECP192R1,
     EllipticCurve,
+    EllipticCurvePublicKey,
+    EllipticCurvePublicNumbers,
+    EllipticCurveSignatureAlgorithm,
 )
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
+from cryptography.utils import Buffer
 
 from paramiko_cloud.base import BaseKeyECDSA, CloudSigningKey
 
-_CURVES = {
+_CURVES: dict[str, Callable[[], EllipticCurve]] = {
     "P-256": SECP256R1,
     "P-384": SECP384R1,
     "P-521": SECP521R1,
@@ -36,17 +39,30 @@ _CURVES = {
 }
 
 
+@runtime_checkable
+class _ECJsonWebKey(Protocol):
+    """Elliptic-curve fields dynamically provided by Azure's JsonWebKey."""
+
+    crv: str
+    x: bytes
+    y: bytes
+
+
 class _AzureSigningKey(CloudSigningKey):
     """
     Provides signing operations to Paramiko for the Azure Key Vault-backed key
 
     Args:
         crypto_client: the Key Vault Cryptography Client authenticated to access the selected key
-        curve: the elliptic curve used for this key
+        public_key: the public key corresponding to the Key Vault key
     """
 
-    def __init__(self, crypto_client: CryptographyClient, curve: EllipticCurve):
-        super().__init__(curve)
+    def __init__(
+        self,
+        crypto_client: CryptographyClient,
+        public_key: EllipticCurvePublicKey,
+    ):
+        super().__init__(public_key)
         self.crypto_client = crypto_client
 
     def _signaure_algorithm(self) -> SignatureAlgorithm:
@@ -66,7 +82,11 @@ class _AzureSigningKey(CloudSigningKey):
         else:
             raise NotImplementedError("Unsupported EC signature algorithm")
 
-    def sign(self, data: bytes, signature_algorithm: ECDSA) -> bytes:
+    def sign(
+        self,
+        data: Buffer,
+        signature_algorithm: EllipticCurveSignatureAlgorithm,
+    ) -> bytes:
         """
         Calculate the signature for the given data
 
@@ -103,44 +123,48 @@ class ECDSAKey(BaseKeyECDSA):
 
     def __init__(
         self,
-        credential: Union[
-            DefaultAzureCredential,
-            AzurePowerShellCredential,
-            InteractiveBrowserCredential,
-            ChainedTokenCredential,
-            EnvironmentCredential,
-            ManagedIdentityCredential,
-            SharedTokenCacheCredential,
-            AzureCliCredential,
-            VisualStudioCodeCredential,
-        ],
+        credential: DefaultAzureCredential
+        | AzurePowerShellCredential
+        | InteractiveBrowserCredential
+        | ChainedTokenCredential
+        | EnvironmentCredential
+        | ManagedIdentityCredential
+        | SharedTokenCacheCredential
+        | AzureCliCredential
+        | VisualStudioCodeCredential,
         vault_url: str,
         key_name: str,
     ):
         vault_client = KeyClient(vault_url, credential=credential)
         pub_key = vault_client.get_key(key_name)
         assert pub_key.key_type in self._ALLOWED_ALGOS, (
-            "Unsupported signing algorithm: {}".format(pub_key.key_type)
+            f"Unsupported signing algorithm: {pub_key.key_type}"
         )
 
         jwk = pub_key.key
         assert jwk is not None, "Missing key material from Azure Key Vault."
-        curve_name = cast(str, getattr(jwk, "crv"))
+        if not isinstance(jwk, _ECJsonWebKey):
+            raise TypeError("Azure Key Vault returned incomplete EC key material")
+        if not isinstance(jwk.crv, str):
+            raise TypeError("Azure Key Vault returned an invalid EC curve name")
+        if not isinstance(jwk.x, bytes) or not isinstance(jwk.y, bytes):
+            raise TypeError("Azure Key Vault returned invalid EC coordinates")
+        curve_name = jwk.crv
 
-        assert curve_name in _CURVES, "Unsupported curve: {}".format(curve_name)
+        assert curve_name in _CURVES, f"Unsupported curve: {curve_name}"
 
-        curve = _CURVES[curve_name]()  # type: ignore[abstract]
+        curve = _CURVES[curve_name]()
 
         verifying_key = EllipticCurvePublicNumbers(
-            int.from_bytes(cast(bytes, getattr(jwk, "x")), "big"),
-            int.from_bytes(cast(bytes, getattr(jwk, "y")), "big"),
+            int.from_bytes(jwk.x, "big"),
+            int.from_bytes(jwk.y, "big"),
             curve,
         ).public_key()
 
         super().__init__(
             (
                 _AzureSigningKey(
-                    CryptographyClient(pub_key, credential), verifying_key.curve
+                    CryptographyClient(pub_key, credential), verifying_key
                 ),
                 verifying_key,
             )

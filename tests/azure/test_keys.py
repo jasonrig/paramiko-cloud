@@ -1,7 +1,7 @@
-from typing import Tuple
 from unittest import TestCase
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
+from azure.identity import EnvironmentCredential
 from azure.keyvault.keys import KeyVaultKey
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -11,9 +11,8 @@ from cryptography.hazmat.primitives.asymmetric.utils import (
     decode_dss_signature,
 )
 from cryptography.hazmat.primitives.hashes import HashAlgorithm
-from paramiko.rsakey import RSAKey
 
-from paramiko_cloud.test_helpers import parse_certificate, sha256_fingerprint
+from tests.helpers import assert_valid_certificate
 
 
 class _SigningResponse:
@@ -44,7 +43,7 @@ def set_up_mocks(
         key_name,
         jwk={
             "kty": "EC",
-            "crv": "P-{}".format(curve.key_size),
+            "crv": f"P-{curve.key_size}",
             "x": int.to_bytes(pub_key.x, 128, "big"),
             "y": int.to_bytes(pub_key.y, 128, "big"),
         },
@@ -52,7 +51,7 @@ def set_up_mocks(
 
 
 class TestECDSAKey(TestCase):
-    ALL_SUPPORTED_ALGOS: Tuple[Tuple[EllipticCurve, HashAlgorithm]] = (
+    ALL_SUPPORTED_ALGOS: tuple[tuple[EllipticCurve, HashAlgorithm], ...] = (
         (ec.SECP256R1(), hashes.SHA256()),
         (ec.SECP384R1(), hashes.SHA384()),
         (ec.SECP521R1(), hashes.SHA512()),
@@ -68,9 +67,7 @@ class TestECDSAKey(TestCase):
         from paramiko_cloud.azure.keys import ECDSAKey
 
         for curve, hash_ in self.ALL_SUPPORTED_ALGOS:
-            with self.subTest(
-                "Using curve {} and hash {}".format(curve.name, hash_.name)
-            ):
+            with self.subTest(f"Using curve {curve.name} and hash {hash_.name}"):
                 set_up_mocks(
                     key_client_mock,
                     crypto_client_mock,
@@ -78,7 +75,11 @@ class TestECDSAKey(TestCase):
                     hash_,
                     self.TEST_KEY_NAME,
                 )
-                key = ECDSAKey(None, None, "test_key")
+                key = ECDSAKey(
+                    EnvironmentCredential(),
+                    "https://test-vault.vault.azure.net",
+                    "test_key",
+                )
                 signature = key.sign_ssh_data(b"hello world")
                 signature.rewind()
                 self.assertTrue(
@@ -94,9 +95,7 @@ class TestECDSAKey(TestCase):
         from paramiko_cloud.azure.keys import ECDSAKey
 
         for curve, hash_ in self.ALL_SUPPORTED_ALGOS:
-            with self.subTest(
-                "Using curve {} and hash {}".format(curve.name, hash_.name)
-            ):
+            with self.subTest(f"Using curve {curve.name} and hash {hash_.name}"):
                 set_up_mocks(
                     key_client_mock,
                     crypto_client_mock,
@@ -104,26 +103,9 @@ class TestECDSAKey(TestCase):
                     hash_,
                     self.TEST_KEY_NAME,
                 )
-                ca_key = ECDSAKey(None, None, "test_key")
-                client_key = RSAKey.generate(1024)
-                cert_string = ca_key.sign_certificate(
-                    client_key, ["test.user"]
-                ).cert_string()
-                exit_code, cert_details = parse_certificate(cert_string)
-                self.assertEqual(
-                    cert_details.public_key,
-                    "RSA-CERT SHA256:{}".format(sha256_fingerprint(client_key)),
+                ca_key = ECDSAKey(
+                    EnvironmentCredential(),
+                    "https://test-vault.vault.azure.net",
+                    "test_key",
                 )
-                self.assertEqual(
-                    cert_details.signing_ca,
-                    "ECDSA SHA256:{} (using ecdsa-sha2-nistp{})".format(
-                        sha256_fingerprint(ca_key), ca_key.ecdsa_curve.key_length
-                    ),
-                )
-                self.assertEqual(
-                    exit_code,
-                    0,
-                    "Could not parse generated certificate with ssh-keygen, exit code {}".format(
-                        exit_code
-                    ),
-                )
+                assert_valid_certificate(self, ca_key)

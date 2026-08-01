@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "paramiko-cloud"
-version = "1.3.2"
+version = "2.0.0"
 description = "Use cloud-managed keys to sign SSH certificates"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,8 +13,8 @@ authors = [
   { name = "Jason Rigby", email = "hello@jasonrig.by" },
 ]
 dependencies = [
-  "paramiko",
-  "cryptography",
+  "paramiko>=5.0.0",
+  "cryptography>=45.0.1",
   "protobuf",
   "grpcio-tools",
 ]
@@ -49,7 +49,16 @@ paramiko_cloud = ["py.typed"]
 "paramiko_cloud.protobuf" = ["*.pyi"]
 
 [dependency-groups]
-dev = ["pytest", "pytest-cov", "ruff", "mypy"]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "mypy",
+    "types-paramiko>=5.0.0.20260724",
+    "types-protobuf>=7.34.1.20260518",
+    "types-grpcio>=1.83.0.20260730",
+    "boto3-stubs[kms]>=1.43.62",
+]
 build = ["build"]
 docs = [
   "sphinx",
@@ -65,13 +74,7 @@ docs = [
 
 [tool.mypy]
 python_version = "3.10"
-ignore_missing_imports = true
-exclude = "(^|/)test_.*\\.py$|(^|/)paramiko_cloud/protobuf/.*_pb2.*\\.py$"
-disable_error_code = ["import-untyped"]
-
-[[tool.mypy.overrides]]
-module = ["paramiko_cloud.protobuf.*"]
-ignore_errors = true
+exclude = "(^|/)paramiko_cloud/protobuf/.*_pb2.*\\.py$"
 
 [tool.ruff]
 target-version = "py310"

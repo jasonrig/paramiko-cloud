@@ -4,8 +4,8 @@ import grpc
 from paramiko.rsakey import RSAKey
 
 from paramiko_cloud.grpc_server import GRPCServer
-from paramiko_cloud.pki import CertificateSigningRequest, CertificateParameters
-from paramiko_cloud.protobuf import rpc_pb2_grpc, rpc_pb2
+from paramiko_cloud.pki import CertificateParameters, CertificateSigningRequest
+from paramiko_cloud.protobuf import rpc_pb2, rpc_pb2_grpc
 
 
 class SignerServicer(rpc_pb2_grpc.SignerServicer):
@@ -43,13 +43,13 @@ class GRPCServerTest(TestCase):
                 ).to_proto()
             )
             resp = stub.SignCertificate(req)
-        self.assertEqual(rpc_pb2.CloudProvider.AWS, servicer.last_request.provider)
-        self.assertEqual("key id", servicer.last_request.kmsKeyId)
+        self.assertEqual(servicer.last_request.provider, rpc_pb2.CloudProvider.AWS)
+        self.assertEqual(servicer.last_request.kmsKeyId, "key id")
         self.assertEqual(
-            "ssh-rsa", servicer.last_request.signingRequestPayload.publicKeyType
+            servicer.last_request.signingRequestPayload.publicKeyType, "ssh-rsa"
         )
-        self.assertEqual("cert type", resp.certificateType)
-        self.assertEqual(b"this is where the certificate would be", resp.certificate)
+        self.assertEqual(resp.certificateType, "cert type")
+        self.assertEqual(resp.certificate, b"this is where the certificate would be")
 
     def test_server_get_ca(self):
         servicer = SignerServicer()
@@ -60,6 +60,6 @@ class GRPCServerTest(TestCase):
             req.provider = rpc_pb2.CloudProvider.AWS
             req.kmsKeyId = "key id"
             resp = stub.GetCertificateAuthority(req)
-        self.assertEqual("key id", servicer.last_request.kmsKeyId)
-        self.assertEqual("key type", resp.keyType)
-        self.assertEqual(b"this is where the CA key would be", resp.publicKey)
+        self.assertEqual(servicer.last_request.kmsKeyId, "key id")
+        self.assertEqual(resp.keyType, "key type")
+        self.assertEqual(resp.publicKey, b"this is where the CA key would be")

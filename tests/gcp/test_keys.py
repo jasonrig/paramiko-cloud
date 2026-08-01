@@ -1,21 +1,17 @@
-from typing import Tuple
 from unittest import TestCase
 
-from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from google.cloud.kms_v1 import AsymmetricSignResponse, Digest
-from google.cloud.kms_v1.types.resources import PublicKey, CryptoKeyVersion
-from paramiko.rsakey import RSAKey
+from google.cloud.kms_v1.types.resources import CryptoKeyVersion, PublicKey
 
 from paramiko_cloud.gcp.keys import ECDSAKey
-from paramiko_cloud.test_helpers import parse_certificate, sha256_fingerprint
+from tests.helpers import assert_valid_certificate
 
 
 class MockKeyManagementServiceClient:
-    def __init__(
-        self, expected_key_name, algo: CryptoKeyVersion.CryptoKeyVersionAlgorithm
-    ):
+    def __init__(self, expected_key_name: str, algo: int):
         self.expected_key_name = expected_key_name
         self.algo = algo
         if algo == CryptoKeyVersion.CryptoKeyVersionAlgorithm.EC_SIGN_P256_SHA256:
@@ -45,7 +41,7 @@ class MockKeyManagementServiceClient:
 
 
 class TestECDSAKey(TestCase):
-    ALL_SUPPORTED_ALGOS: Tuple[CryptoKeyVersion.CryptoKeyVersionAlgorithm] = (
+    ALL_SUPPORTED_ALGOS: tuple[int, ...] = (
         CryptoKeyVersion.CryptoKeyVersionAlgorithm.EC_SIGN_P256_SHA256,
         CryptoKeyVersion.CryptoKeyVersionAlgorithm.EC_SIGN_P384_SHA384,
     )
@@ -54,7 +50,7 @@ class TestECDSAKey(TestCase):
 
     def test_key_from_cloud_can_sign(self):
         for algo in self.ALL_SUPPORTED_ALGOS:
-            with self.subTest("Using {}".format(algo.name)):
+            with self.subTest(f"Using {algo.name}"):
                 key = ECDSAKey(
                     MockKeyManagementServiceClient(self.TEST_KEY_NAME, algo), "test_key"
                 )
@@ -67,29 +63,8 @@ class TestECDSAKey(TestCase):
 
     def test_key_from_cloud_can_produce_valid_certificate(self):
         for algo in self.ALL_SUPPORTED_ALGOS:
-            with self.subTest("Using {}".format(algo.name)):
+            with self.subTest(f"Using {algo.name}"):
                 ca_key = ECDSAKey(
                     MockKeyManagementServiceClient(self.TEST_KEY_NAME, algo), "test_key"
                 )
-                client_key = RSAKey.generate(1024)
-                cert_string = ca_key.sign_certificate(
-                    client_key, ["test.user"]
-                ).cert_string()
-                exit_code, cert_details = parse_certificate(cert_string)
-                self.assertEqual(
-                    cert_details.public_key,
-                    "RSA-CERT SHA256:{}".format(sha256_fingerprint(client_key)),
-                )
-                self.assertEqual(
-                    cert_details.signing_ca,
-                    "ECDSA SHA256:{} (using ecdsa-sha2-nistp{})".format(
-                        sha256_fingerprint(ca_key), ca_key.ecdsa_curve.key_length
-                    ),
-                )
-                self.assertEqual(
-                    exit_code,
-                    0,
-                    "Could not parse generated certificate with ssh-keygen, exit code {}".format(
-                        exit_code
-                    ),
-                )
+                assert_valid_certificate(self, ca_key)

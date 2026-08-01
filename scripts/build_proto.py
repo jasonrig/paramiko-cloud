@@ -2,7 +2,6 @@
 import ast
 import importlib
 from pathlib import Path
-from typing import Protocol, runtime_checkable
 
 ROOT = Path(__file__).resolve().parent.parent
 PROTO_DIR = ROOT / "ssh-cert-proto"
@@ -11,16 +10,14 @@ BASE_MODULE = "paramiko_cloud.protobuf"
 GENERATED_MODULE_PATTERNS = ("*_pb2*.py", "*_pb2*.pyi")
 
 
-@runtime_checkable
-class _ProtocModule(Protocol):
-    def main(self, command: list[str]) -> int: ...
-
-
 def run_protoc(*args: str) -> None:
     protoc = importlib.import_module("grpc_tools.protoc")
-    if not isinstance(protoc, _ProtocModule):
+    protoc_main = getattr(protoc, "main", None)
+    if not callable(protoc_main):
         raise TypeError("grpc_tools.protoc does not provide a compatible main function")
-    rc = protoc.main(["grpc_tools.protoc", *args])
+    rc = protoc_main(["grpc_tools.protoc", *args])
+    if not isinstance(rc, int):
+        raise TypeError("grpc_tools.protoc returned an invalid result")
     if rc != 0:
         raise SystemExit(rc)
 

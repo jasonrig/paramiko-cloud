@@ -13,4 +13,4 @@ uv run --frozen --no-build --no-sync python scripts/build_proto.py
 
 RUN_OPENSSH_INTEGRATION=1 \
     uv run --frozen --no-build --no-sync \
-    pytest -m integration tests/integration "$@"
+    pytest --log-cli-level=INFO -m integration tests/integration "$@"

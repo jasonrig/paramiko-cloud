@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import time
@@ -22,6 +23,8 @@ from .conftest import (
     DummySigner,
     OpenSSHServer,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 pytestmark = [
     pytest.mark.integration,
@@ -118,8 +121,11 @@ def _assert_authentication_rejected(
 
 
 def test_server_runs_modern_openssh(openssh_server: OpenSSHServer) -> None:
+    alpine_version = openssh_server.alpine_version()
     major, minor, version = openssh_server.version()
+    LOGGER.info("Verified Alpine %s; %s", alpine_version, version)
 
+    assert alpine_version == "3.24.1"
     assert (major, minor) >= (10, 0), version
 
 

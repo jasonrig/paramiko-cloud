@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import shutil
@@ -21,6 +22,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_FILE = Path(__file__).parent / "openssh" / "compose.yaml"
 INTEGRATION_ENV = "RUN_OPENSSH_INTEGRATION"
 SSH_USER = "certuser"
+LOGGER = logging.getLogger(__name__)
 
 
 class DummySignerServicer(rpc_pb2_grpc.SignerServicer):
@@ -153,10 +155,20 @@ class OpenSSHServer:
     def version(self) -> tuple[int, int, str]:
         result = self.compose("exec", "-T", "openssh", "sshd", "-V")
         output = result.stdout + result.stderr
-        match = re.search(r"OpenSSH_(\d+)\.(\d+)", output)
+        match = re.search(r"(OpenSSH_(\d+)\.(\d+)[^\r\n]*)", output)
         if match is None:
             raise AssertionError(f"Unable to parse OpenSSH version from: {output}")
-        return int(match.group(1)), int(match.group(2)), output.strip()
+        return int(match.group(2)), int(match.group(3)), match.group(1)
+
+    def alpine_version(self) -> str:
+        result = self.compose(
+            "exec",
+            "-T",
+            "openssh",
+            "cat",
+            "/etc/alpine-release",
+        )
+        return result.stdout.strip()
 
     def logs(self) -> str:
         result = self.compose("logs", "--no-color", check=False)
@@ -243,7 +255,20 @@ def openssh_server(
 
         port_result = server.compose("port", "openssh", "22")
         port = int(port_result.stdout.strip().rsplit(":", maxsplit=1)[1])
-        yield OpenSSHServer(port, project_name, compose_environment)
+        running_server = OpenSSHServer(port, project_name, compose_environment)
+        container_id = running_server.compose(
+            "ps",
+            "--quiet",
+            "openssh",
+        ).stdout.strip()
+        if not container_id:
+            pytest.fail("OpenSSH integration container is not running")
+        LOGGER.info(
+            "OpenSSH container %s is ready on 127.0.0.1:%d",
+            container_id,
+            port,
+        )
+        yield running_server
     finally:
         server.compose(
             "down",

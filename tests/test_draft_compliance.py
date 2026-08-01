@@ -193,9 +193,10 @@ def test_rsa_ca_is_rejected() -> None:
         RSAKey.generate(2048),
         CertificateParameters(principals=["certuser"]),
     )
+    ca_key = RSAKey.generate(2048)
 
     with pytest.raises(
         NotImplementedError,
         match="RSA certificate authority keys are not supported",
     ):
-        signing_request.sign(RSAKey.generate(2048))
+        signing_request.sign(ca_key)

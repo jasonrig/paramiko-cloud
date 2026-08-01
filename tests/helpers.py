@@ -2,12 +2,20 @@ import base64
 import hashlib
 import subprocess
 import tempfile
+from pathlib import Path
 from unittest import TestCase
 
+from cryptography.hazmat.primitives.asymmetric.ec import SECP256R1, generate_private_key
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+)
 from paramiko.pkey import PKey
 from paramiko.rsakey import RSAKey
 
 from paramiko_cloud.base import BaseKeyECDSA
+from paramiko_cloud.dummy.keys import ECDSAKey as DummyECDSAKey
 
 
 class ParsedCertificateResponse:
@@ -92,6 +100,29 @@ def parse_certificate(cert_string: str) -> tuple[int, ParsedCertificateResponse]
 
 def sha256_fingerprint(key: PKey) -> str:
     return base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip("=")
+
+
+def dummy_ecdsa_ca() -> DummyECDSAKey:
+    private_key = generate_private_key(SECP256R1())
+    private_key_pem = private_key.private_bytes(
+        Encoding.PEM,
+        PrivateFormat.PKCS8,
+        NoEncryption(),
+    )
+    return DummyECDSAKey(private_key_pem)
+
+
+def write_openssh_public_blob(
+    path: Path,
+    key_type: str,
+    key_blob: bytes,
+    comment: str,
+) -> None:
+    encoded_blob = base64.standard_b64encode(key_blob).decode()
+    path.write_text(
+        f"{key_type} {encoded_blob} {comment}\n",
+        encoding="utf-8",
+    )
 
 
 def assert_valid_certificate(test_case: TestCase, ca_key: BaseKeyECDSA) -> None:

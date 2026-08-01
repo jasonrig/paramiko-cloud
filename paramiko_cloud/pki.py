@@ -26,6 +26,7 @@ def _optional_pkey_type(
 
 
 DSSKey = _optional_pkey_type(vars(paramiko), "DSSKey")
+Ed448Key = _optional_pkey_type(vars(paramiko), "Ed448Key")
 
 
 def _require_type(value: object, expected: type[T], name: str) -> T:
@@ -80,10 +81,10 @@ class CertificateType(enum.Enum):
     The type of certificate to issue
     """
 
-    # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L73
+    # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-4.1
     USER = 1
 
-    # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L74
+    # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-4.1
     HOST = 2
 
     def pb_enum(self) -> CSR.Type:
@@ -111,19 +112,35 @@ class CertificateType(enum.Enum):
         return getattr(cls, CSR.Type.Name(value))
 
 
+class CertificateKeyTypeFormat(enum.Enum):
+    """
+    The certificate key type naming convention to emit
+
+    ``OPENSSH`` uses the widely supported vendor names such as
+    ``ssh-rsa-cert-v01@openssh.com``. ``STANDARD`` uses the names registered by
+    the SSH certificate draft, such as ``ssh-rsa-cert``.
+    """
+
+    OPENSSH = "openssh"
+    STANDARD = "standard"
+
+
 class CertificateCriticalOptions(enum.Enum):
     """
     `Certificate critical options`_
 
     .. _Certificate critical options:
-       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L221
+       https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.4
     """
 
-    # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L248
+    # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.4
     FORCE_COMMAND = "force-command"
 
-    # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L253
+    # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.4
     SOURCE_ADDRESS = "source-address"
+
+    # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.4
+    VERIFY_REQUIRED = "verify-required"
 
     def pb_enum(self) -> CSR.CriticalOption:
         """
@@ -155,25 +172,25 @@ class CertificateExtensions(enum.Enum):
     `Certificate extensions`_
 
     .. _Certificate extensions:
-       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L270
+       https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.3
     """
 
-    # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L290
+    # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.3
     NO_TOUCH_REQUIRED = "no-touch-required"
 
-    # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L297
+    # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.3
     PERMIT_X11_FORWARDING = "permit-X11-forwarding"
 
-    # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L301
+    # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.3
     PERMIT_AGENT_FORWARDING = "permit-agent-forwarding"
 
-    # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L306
+    # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.3
     PERMIT_PORT_FORWARDING = "permit-port-forwarding"
 
-    # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L311
+    # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.3
     PERMIT_PTY = "permit-pty"
 
-    # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L316
+    # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.3
     PERMIT_USER_RC = "permit-user-rc"
 
     @classmethod
@@ -219,6 +236,30 @@ class CertificateExtensions(enum.Enum):
         return getattr(cls, CSR.Extension.Name(value))
 
 
+CertificateOption = CertificateCriticalOptions | CertificateExtensions
+CertificateOptionT = TypeVar(
+    "CertificateOptionT",
+    CertificateCriticalOptions,
+    CertificateExtensions,
+)
+
+
+def _is_flag_option(option: CertificateOption) -> bool:
+    return (
+        isinstance(option, CertificateExtensions)
+        or option is CertificateCriticalOptions.VERIFY_REQUIRED
+    )
+
+
+def _require_empty_flag_values(
+    options: Mapping[CertificateOptionT, str],
+    name: str,
+) -> None:
+    for option, value in options.items():
+        if _is_flag_option(option) and value:
+            raise ValueError(f"{name} flag {option.value} must have an empty value")
+
+
 class CertificateParameters:
     """
     All certificate parameters needed for signing
@@ -237,21 +278,21 @@ class CertificateParameters:
         extensions (Dict[CertificateExtensions, str]): dict of certificate `extensions`_
 
     .. _type of certificate:
-       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L169
+       https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
     .. _key identifier:
-       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L172
+       https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
     .. _serial number:
-       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L164
+       https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
     .. _valid principals:
-       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L176
+       https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
     .. _time after which the certificate is valid:
-       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L183
+       https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
     .. _time before which the certificate is valid:
-       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L183
+       https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
     .. _critical options:
-       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L221
+       https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.4
     .. _extensions:
-       https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L270
+       https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.3
     """
 
     def __init__(
@@ -261,28 +302,30 @@ class CertificateParameters:
     ):
         now = int(time.time())
 
-        # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L83
+        # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
         self.cert_type = _require_type(
             kwargs.get("type", CertificateType.USER),
             CertificateType,
             "type",
         )
 
-        # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L84
+        # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
         self.key_id = _require_type(kwargs.get("key_id", ""), str, "key_id")
 
-        # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L82
+        # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
         self.serial = _require_type(kwargs.get("serial", 0), int, "serial")
 
-        # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L85
+        # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
         self.principals = _require_str_list(kwargs.get("principals", []), "principals")
+        if not self.principals:
+            raise ValueError("principals must contain at least one principal")
 
-        # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L86
+        # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
         self.valid_after = _require_type(
             kwargs.get("valid_after", now), int, "valid_after"
         )
 
-        # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L87
+        # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
         valid_before_value = kwargs.get("valid_before")
         valid_before = (
             None
@@ -296,22 +339,24 @@ class CertificateParameters:
             else self.valid_after + valid_for_seconds
         )
 
-        # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L88
+        # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
         critical_options = _require_options(
             kwargs.get("critical_options", {}),
             CertificateCriticalOptions,
             "critical_options",
         )
+        _require_empty_flag_values(critical_options, "critical option")
         self.critical_opts = sorted(
             critical_options.items(), key=lambda _opt: _opt[0].value
         )
 
-        # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L89
+        # https://www.ietf.org/archive/id/draft-ietf-sshm-cert-01.html#section-2.1.1
         extensions = _require_options(
             kwargs.get("extensions", {}),
             CertificateExtensions,
             "extensions",
         )
+        _require_empty_flag_values(extensions, "extension")
         self.extensions = sorted(
             extensions.items(),
             key=lambda _ext: _ext[0].value,
@@ -326,8 +371,6 @@ class CertificateSigningRequest:
         public_key: key to sign
         cert_params: certificate parameters
     """
-
-    _CERT_SUFFIX = "-cert-v01@openssh.com"
 
     def __init__(self, public_key: PKey, cert_params: CertificateParameters):
         self.cert_params = cert_params
@@ -403,10 +446,12 @@ class CertificateSigningRequest:
             public_key = Ed25519Key(public_key_message)
         elif key_type.startswith("ecdsa-sha2"):
             public_key = ECDSAKey(public_key_message)
+        elif key_type == "ssh-ed448" and Ed448Key is not None:
+            public_key = Ed448Key(public_key_message)
         elif key_type == "ssh-dss" and DSSKey is not None:
             public_key = DSSKey(public_key_message)
         else:
-            raise NotImplementedError(f"Key type not supported: {key_type}")
+            raise NotImplementedError(f"Key type not supported by Paramiko: {key_type}")
 
         return cls(public_key, params)
 
@@ -439,45 +484,61 @@ class CertificateSigningRequest:
         m = Message()
         for k, v in opts:
             m.add_string(k.value)
-            if len(v) == 0:
-                m.add_string("")
+            if _is_flag_option(k):
+                m.add_string(v)
             else:
                 opt_value = Message()
-                for _v in v:
-                    opt_value.add_string(_v)
+                opt_value.add_string(v)
                 m.add_string(opt_value.asbytes())
         return m
 
-    def sign(self, signing_key: PKey) -> CertificateBlob:
+    def sign(
+        self,
+        signing_key: PKey,
+        *,
+        key_type_format: CertificateKeyTypeFormat = CertificateKeyTypeFormat.OPENSSH,
+    ) -> CertificateBlob:
         """
         Signs the public key using the signing key
 
         Args:
             signing_key: CA key used for signing
+            key_type_format: certificate key type naming convention to emit
 
         Returns:
             The signed certificate
         """
 
+        if isinstance(signing_key, RSAKey):
+            raise NotImplementedError(
+                "RSA certificate authority keys are not supported"
+            )
         assert signing_key.can_sign(), "Key not capable of signing."
+        key_type_format = _require_type(
+            key_type_format,
+            CertificateKeyTypeFormat,
+            "key_type_format",
+        )
 
         public_parts = self._get_public_parts()
 
         cert = Message()
-        cert.add_string(self.public_key.get_name() + self._CERT_SUFFIX)
+        cert_suffix = (
+            "-cert"
+            if key_type_format is CertificateKeyTypeFormat.STANDARD
+            else "-cert-v01@openssh.com"
+        )
+        cert.add_string(self.public_key.get_name() + cert_suffix)
         cert.add_string(secrets.token_bytes(32))
         cert.add_bytes(public_parts.asbytes())
         cert.add_int64(self.cert_params.serial)
         cert.add_int(self.cert_params.cert_type.value)
         cert.add_string(self.cert_params.key_id)
 
-        if len(self.cert_params.principals) == 0:
-            cert.add_string("")
-        else:
-            m = Message()
-            for p in self.cert_params.principals:
-                m.add_string(p)
-            cert.add_string(m.asbytes())
+        principals = Message()
+        for principal in self.cert_params.principals:
+            principals.add_string(principal)
+        cert.add_string(principals.asbytes())
 
         cert.add_int64(self.cert_params.valid_after)
         cert.add_int64(self.cert_params.valid_before)
@@ -509,6 +570,8 @@ class CertificateSigningKeyMixin(PKey):
         pub_key: PKey,
         principals: list[str],
         extensions: dict[CertificateExtensions, str] | None = None,
+        *,
+        key_type_format: CertificateKeyTypeFormat = CertificateKeyTypeFormat.OPENSSH,
         **kwargs: Any,
     ) -> CertificateBlob:
         """
@@ -518,17 +581,26 @@ class CertificateSigningKeyMixin(PKey):
             pub_key: the SSH public key
             principals: a list of principals to encode into the certificate
             extensions: a dictionary of certificate extensions, see :py:mod:`paramiko_cloud.pki.CertificateExtensions`
+            key_type_format: certificate key type naming convention to emit
             **kwargs: additional certificate configuration parameters passed to the constructor of :py:mod:`paramiko_cloud.pki.CertificateParameters`
 
         Returns:
             A PublicBlob object containing the signed certificate
         """
 
+        certificate_type = kwargs.get("type", CertificateType.USER)
+        if extensions is None:
+            extensions = (
+                CertificateExtensions.permit_all()
+                if certificate_type is CertificateType.USER
+                else {}
+            )
+
         return CertificateSigningRequest(
             pub_key,
             CertificateParameters(
                 principals=principals,
-                extensions=extensions or CertificateExtensions.permit_all(),
+                extensions=extensions,
                 **kwargs,
             ),
-        ).sign(self)
+        ).sign(self, key_type_format=key_type_format)

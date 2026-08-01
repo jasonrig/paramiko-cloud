@@ -23,7 +23,10 @@ class PKITest(TestCase):
             with self.subTest(
                 f"CSR from {key.get_name()} key can be serialized and deserialized"
             ):
-                csr = CertificateSigningRequest(key, CertificateParameters())
+                csr = CertificateSigningRequest(
+                    key,
+                    CertificateParameters(principals=["test.user"]),
+                )
                 csr_reconstructed = CertificateSigningRequest.from_proto(csr.to_proto())
                 self.assertEqual(
                     key.get_fingerprint(),
@@ -37,7 +40,10 @@ class PKITest(TestCase):
                         )
 
     def test_dss_key_type_handling(self):
-        csr = CertificateSigningRequest(rsa_key, CertificateParameters()).to_proto()
+        csr = CertificateSigningRequest(
+            rsa_key,
+            CertificateParameters(principals=["test.user"]),
+        ).to_proto()
         csr.publicKeyType = "ssh-dss"
         if DSSKey is None:
             with self.assertRaises(NotImplementedError):
@@ -54,7 +60,8 @@ class PKITest(TestCase):
         csr = CertificateSigningRequest(
             rsa_key,
             CertificateParameters(
-                extensions={CertificateExtensions.NO_TOUCH_REQUIRED: ""}
+                principals=["test.user"],
+                extensions={CertificateExtensions.NO_TOUCH_REQUIRED: ""},
             ),
         ).to_proto()
 

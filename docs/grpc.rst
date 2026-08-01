@@ -67,3 +67,9 @@ Operational Notes
   signing.
 * ``CertificateSigningRequest.from_proto`` supports RSA, ECDSA, Ed25519, and
   DSS public keys when the installed Paramiko version still exposes DSS support.
+* Ed448 CSRs are supported only when the installed Paramiko version exposes an
+  ``Ed448Key`` primitive. Paramiko 5.0 does not.
+* Certificate key type naming is issuer-side policy rather than part of the
+  protobuf CSR. The default OpenSSH vendor names provide current interoperability;
+  a servicer may pass ``CertificateKeyTypeFormat.STANDARD`` to ``sign`` when its
+  consumers support the draft-standard names.

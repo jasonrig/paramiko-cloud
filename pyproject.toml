@@ -13,8 +13,8 @@ authors = [
   { name = "Jason Rigby", email = "hello@jasonrig.by" },
 ]
 dependencies = [
-  "paramiko",
-  "cryptography",
+  "paramiko>=5.0.0",
+  "cryptography>=45.0.1",
   "protobuf",
   "grpcio-tools",
 ]

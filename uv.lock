@@ -1340,11 +1340,11 @@ requires-dist = [
     { name = "azure-keyvault-keys", marker = "extra == 'azure'" },
     { name = "boto3", marker = "extra == 'all'" },
     { name = "boto3", marker = "extra == 'aws'" },
-    { name = "cryptography" },
+    { name = "cryptography", specifier = ">=45.0.1" },
     { name = "google-cloud-kms", marker = "extra == 'all'" },
     { name = "google-cloud-kms", marker = "extra == 'gcp'" },
     { name = "grpcio-tools" },
-    { name = "paramiko" },
+    { name = "paramiko", specifier = ">=5.0.0" },
     { name = "protobuf" },
 ]
 provides-extras = ["aws", "gcp", "azure", "all"]

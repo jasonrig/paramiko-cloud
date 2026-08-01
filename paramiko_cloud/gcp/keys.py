@@ -1,5 +1,3 @@
-from typing import cast
-
 from cryptography.hazmat.primitives.asymmetric.ec import (
     ECDSA,
     EllipticCurve,
@@ -79,9 +77,9 @@ class ECDSAKey(BaseKeyECDSA):
         assert pub_key.algorithm.name in self._ALLOWED_ALGOS, (
             f"Unsupported signing algorithm: {pub_key.algorithm.name}"
         )
-        verifying_key = cast(
-            EllipticCurvePublicKey, load_pem_public_key(pub_key.pem.encode())
-        )
+        verifying_key = load_pem_public_key(pub_key.pem.encode())
+        if not isinstance(verifying_key, EllipticCurvePublicKey):
+            raise TypeError("GCP KMS public key is not an elliptic curve key")
         super().__init__(
             (
                 _GCPSigningKey(kms_client, pub_key.name, verifying_key.curve),

@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any
 
 import boto3
 from cryptography.hazmat.primitives.asymmetric.ec import (
@@ -93,9 +93,9 @@ class ECDSAKey(BaseKeyECDSA):
         ), "No supported key/algorithm pair found."
         assert pub_key["KeyUsage"] == "SIGN_VERIFY", "Key does not support signing."
 
-        verifying_key = cast(
-            EllipticCurvePublicKey, load_der_public_key(pub_key["PublicKey"])
-        )
+        verifying_key = load_der_public_key(pub_key["PublicKey"])
+        if not isinstance(verifying_key, EllipticCurvePublicKey):
+            raise TypeError("AWS KMS public key is not an elliptic curve key")
 
         super().__init__(
             (

@@ -1,5 +1,3 @@
-from typing import cast
-
 from cryptography.hazmat.primitives.asymmetric.ec import ECDSA, EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
@@ -29,8 +27,8 @@ class ECDSAKey(BaseKeyECDSA):
     """
 
     def __init__(self, pem_private_key: bytes, password: bytes | None = None):
-        private_key = cast(
-            EllipticCurvePrivateKey, load_pem_private_key(pem_private_key, password)
-        )
+        private_key = load_pem_private_key(pem_private_key, password)
+        if not isinstance(private_key, EllipticCurvePrivateKey):
+            raise TypeError("PEM private key is not an elliptic curve key")
         public_key = private_key.public_key()
         super().__init__((_LocalSigningKey(private_key), public_key))

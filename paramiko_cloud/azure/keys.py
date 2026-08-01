@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Protocol, runtime_checkable
 
 from azure.identity import (
     AzureCliCredential,
@@ -34,6 +34,15 @@ _CURVES = {
     "P-224": SECP224R1,
     "P-192": SECP192R1,
 }
+
+
+@runtime_checkable
+class _ECJsonWebKey(Protocol):
+    """Elliptic-curve fields dynamically provided by Azure's JsonWebKey."""
+
+    crv: str
+    x: bytes
+    y: bytes
 
 
 class _AzureSigningKey(CloudSigningKey):
@@ -123,15 +132,21 @@ class ECDSAKey(BaseKeyECDSA):
 
         jwk = pub_key.key
         assert jwk is not None, "Missing key material from Azure Key Vault."
-        curve_name = cast(str, getattr(jwk, "crv"))  # noqa: B009
+        if not isinstance(jwk, _ECJsonWebKey):
+            raise TypeError("Azure Key Vault returned incomplete EC key material")
+        if not isinstance(jwk.crv, str):
+            raise TypeError("Azure Key Vault returned an invalid EC curve name")
+        if not isinstance(jwk.x, bytes) or not isinstance(jwk.y, bytes):
+            raise TypeError("Azure Key Vault returned invalid EC coordinates")
+        curve_name = jwk.crv
 
         assert curve_name in _CURVES, f"Unsupported curve: {curve_name}"
 
         curve = _CURVES[curve_name]()  # type: ignore[abstract]
 
         verifying_key = EllipticCurvePublicNumbers(
-            int.from_bytes(cast(bytes, getattr(jwk, "x")), "big"),  # noqa: B009
-            int.from_bytes(cast(bytes, getattr(jwk, "y")), "big"),  # noqa: B009
+            int.from_bytes(jwk.x, "big"),
+            int.from_bytes(jwk.y, "big"),
             curve,
         ).public_key()
 

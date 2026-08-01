@@ -3,7 +3,8 @@ import datetime
 import enum
 import secrets
 import time
-from typing import Any, cast
+from collections.abc import Iterable
+from typing import Any, TypeVar
 
 from paramiko import ECDSAKey, Ed25519Key, RSAKey
 from paramiko.message import Message
@@ -15,6 +16,36 @@ except ImportError:  # pragma: no cover - only reached on newer Paramiko version
     DSSKey = None
 
 from paramiko_cloud.protobuf.csr_pb2 import CSR
+
+T = TypeVar("T")
+
+
+def _require_type(value: object, expected: type[T], name: str) -> T:
+    if not isinstance(value, expected):
+        raise TypeError(f"{name} must be {expected.__name__}")
+    return value
+
+
+def _require_str_list(value: object, name: str) -> list[str]:
+    if not isinstance(value, Iterable) or isinstance(value, (str, bytes)):
+        raise TypeError(f"{name} must be a list of strings")
+    items = list(value)
+    if not all(isinstance(item, str) for item in items):
+        raise TypeError(f"{name} must be a list of strings")
+    return items
+
+
+def _require_options(
+    value: object,
+    key_type: type[T],
+    name: str,
+) -> dict[T, str]:
+    if not isinstance(value, dict) or not all(
+        isinstance(key, key_type) and isinstance(option, str)
+        for key, option in value.items()
+    ):
+        raise TypeError(f"{name} must map {key_type.__name__} values to strings")
+    return value
 
 
 class CertificateBlob(PublicBlob):
@@ -47,7 +78,7 @@ class CertificateType(enum.Enum):
     # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L74
     HOST = 2
 
-    def pb_enum(self) -> int:
+    def pb_enum(self) -> CSR.Type:
         """
         Converts the enum into the correct protobuf value for serialization
 
@@ -86,7 +117,7 @@ class CertificateCriticalOptions(enum.Enum):
     # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L253
     SOURCE_ADDRESS = "source-address"
 
-    def pb_enum(self) -> int:
+    def pb_enum(self) -> CSR.CriticalOption:
         """
         Converts the enum into the correct protobuf value for serialization
 
@@ -155,7 +186,7 @@ class CertificateExtensions(enum.Enum):
             cls.PERMIT_USER_RC: "",
         }
 
-    def pb_enum(self) -> int:
+    def pb_enum(self) -> CSR.Extension:
         """
         Converts the enum into the correct protobuf value for serialization
 
@@ -223,22 +254,33 @@ class CertificateParameters:
         now = int(time.time())
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L83
-        self.cert_type = cast(CertificateType, kwargs.get("type", CertificateType.USER))
+        self.cert_type = _require_type(
+            kwargs.get("type", CertificateType.USER),
+            CertificateType,
+            "type",
+        )
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L84
-        self.key_id = cast(str, kwargs.get("key_id", ""))
+        self.key_id = _require_type(kwargs.get("key_id", ""), str, "key_id")
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L82
-        self.serial = cast(int, kwargs.get("serial", 0))
+        self.serial = _require_type(kwargs.get("serial", 0), int, "serial")
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L85
-        self.principals = cast(list[str], kwargs.get("principals", []))
+        self.principals = _require_str_list(kwargs.get("principals", []), "principals")
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L86
-        self.valid_after = cast(int, kwargs.get("valid_after", now))
+        self.valid_after = _require_type(
+            kwargs.get("valid_after", now), int, "valid_after"
+        )
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L87
-        valid_before = cast(int | None, kwargs.get("valid_before"))
+        valid_before_value = kwargs.get("valid_before")
+        valid_before = (
+            None
+            if valid_before_value is None
+            else _require_type(valid_before_value, int, "valid_before")
+        )
         valid_for_seconds = int(valid_for.total_seconds()) if valid_for else 0
         self.valid_before = (
             valid_before
@@ -247,16 +289,20 @@ class CertificateParameters:
         )
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L88
-        critical_options = cast(
-            dict[CertificateCriticalOptions, str], kwargs.get("critical_options", {})
+        critical_options = _require_options(
+            kwargs.get("critical_options", {}),
+            CertificateCriticalOptions,
+            "critical_options",
         )
         self.critical_opts = sorted(
             critical_options.items(), key=lambda _opt: _opt[0].value
         )
 
         # https://github.com/openssh/openssh-portable/blob/2b71010d9b43d7b8c9ec1bf010beb00d98fa765a/PROTOCOL.certkeys#L89
-        extensions = cast(
-            dict[CertificateExtensions, str], kwargs.get("extensions", {})
+        extensions = _require_options(
+            kwargs.get("extensions", {}),
+            CertificateExtensions,
+            "extensions",
         )
         self.extensions = sorted(
             extensions.items(),
@@ -299,12 +345,12 @@ class CertificateSigningRequest:
         csr.validBefore = self.cert_params.valid_before
         for opt, val in self.cert_params.critical_opts:
             option_value = CSR.CriticalOptionValue()
-            option_value.type = cast(CSR.CriticalOption, opt.pb_enum())
+            option_value.type = opt.pb_enum()
             option_value.value = val
             csr.criticalOptions.append(option_value)
         for ext, val in self.cert_params.extensions:
             extension_value = CSR.ExtensionValue()
-            extension_value.type = cast(CSR.Extension, ext.pb_enum())
+            extension_value.type = ext.pb_enum()
             extension_value.value = val
             csr.extensions.append(extension_value)
         csr.publicKeyType = self.public_key.get_name()
@@ -370,7 +416,7 @@ class CertificateSigningRequest:
 
     @staticmethod
     def _encode_options(
-        opts: list[tuple[CertificateCriticalOptions | CertificateExtensions, str]],
+        opts: Iterable[tuple[CertificateCriticalOptions | CertificateExtensions, str]],
     ) -> Message:
         """
         Encodes the certificate options and extensions into the required format
@@ -429,14 +475,8 @@ class CertificateSigningRequest:
         cert.add_int64(self.cert_params.valid_before)
 
         for opts in (
-            cast(
-                list[tuple[CertificateCriticalOptions | CertificateExtensions, str]],
-                self.cert_params.critical_opts,
-            ),
-            cast(
-                list[tuple[CertificateCriticalOptions | CertificateExtensions, str]],
-                self.cert_params.extensions,
-            ),
+            self.cert_params.critical_opts,
+            self.cert_params.extensions,
         ):
             if len(opts) == 0:
                 cert.add_string("")

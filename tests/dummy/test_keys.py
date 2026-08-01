@@ -3,10 +3,9 @@ from unittest import TestCase
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
-from paramiko.rsakey import RSAKey
 
 from paramiko_cloud.dummy.keys import ECDSAKey
-from tests.helpers import parse_certificate, sha256_fingerprint
+from tests.helpers import assert_valid_certificate
 
 private_key = ec.generate_private_key(ec.SECP256R1()).private_bytes(
     encoding=serialization.Encoding.PEM,
@@ -48,20 +47,4 @@ class TestECDSAKey(TestCase):
 
     def test_key_from_cloud_can_produce_valid_certificate(self):
         ca_key = ECDSAKey(private_key)
-        client_key = RSAKey.generate(1024)
-        cert_string = ca_key.sign_certificate(client_key, ["test.user"]).cert_string()
-        exit_code, cert_details = parse_certificate(cert_string)
-        self.assertEqual(
-            cert_details.public_key,
-            f"RSA-CERT SHA256:{sha256_fingerprint(client_key)}",
-        )
-        assert ca_key.ecdsa_curve is not None
-        self.assertEqual(
-            cert_details.signing_ca,
-            f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})",
-        )
-        self.assertEqual(
-            exit_code,
-            0,
-            f"Could not parse generated certificate with ssh-keygen, exit code {exit_code}",
-        )
+        assert_valid_certificate(self, ca_key)

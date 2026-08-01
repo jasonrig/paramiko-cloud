@@ -6,10 +6,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from cryptography.hazmat.primitives.hashes import HashAlgorithm
-from paramiko.rsakey import RSAKey
 
-from paramiko_cloud.base import BaseKeyECDSA
-from tests.helpers import parse_certificate, sha256_fingerprint
+from tests.helpers import assert_valid_certificate
 
 
 def set_up_mocks(boto3_mock: Mock, curve: EllipticCurve, hash_algo: HashAlgorithm):
@@ -67,26 +65,4 @@ class TestECDSAKey(TestCase):
             with self.subTest(f"Using curve {curve.name} and hash {hash_.name}"):
                 set_up_mocks(boto3_mock, curve, hash_)
                 ca_key = ECDSAKey("test_key", region_name="ap-northeast-1")
-                client_key = RSAKey.generate(1024)
-                cert_string = ca_key.sign_certificate(
-                    client_key, ["test.user"]
-                ).cert_string()
-                exit_code, cert_details = parse_certificate(cert_string)
-                self.assertEqual(
-                    cert_details.public_key,
-                    f"RSA-CERT SHA256:{sha256_fingerprint(client_key)}",
-                )
-                self.assertEqual(
-                    cert_details.signing_ca,
-                    self._signing_ca(ca_key),
-                )
-                self.assertEqual(
-                    exit_code,
-                    0,
-                    f"Could not parse generated certificate with ssh-keygen, exit code {exit_code}",
-                )
-
-    @staticmethod
-    def _signing_ca(ca_key: BaseKeyECDSA) -> str:
-        assert ca_key.ecdsa_curve is not None
-        return f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})"
+                assert_valid_certificate(self, ca_key)

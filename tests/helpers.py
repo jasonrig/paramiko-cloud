@@ -2,8 +2,12 @@ import base64
 import hashlib
 import subprocess
 import tempfile
+from unittest import TestCase
 
 from paramiko.pkey import PKey
+from paramiko.rsakey import RSAKey
+
+from paramiko_cloud.base import BaseKeyECDSA
 
 
 class ParsedCertificateResponse:
@@ -88,3 +92,25 @@ def parse_certificate(cert_string: str) -> tuple[int, ParsedCertificateResponse]
 
 def sha256_fingerprint(key: PKey) -> str:
     return base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip("=")
+
+
+def assert_valid_certificate(test_case: TestCase, ca_key: BaseKeyECDSA) -> None:
+    client_key = RSAKey.generate(1024)
+    cert_string = ca_key.sign_certificate(client_key, ["test.user"]).cert_string()
+    exit_code, cert_details = parse_certificate(cert_string)
+
+    test_case.assertEqual(
+        cert_details.public_key,
+        f"RSA-CERT SHA256:{sha256_fingerprint(client_key)}",
+    )
+    assert ca_key.ecdsa_curve is not None
+    test_case.assertEqual(
+        cert_details.signing_ca,
+        f"ECDSA SHA256:{sha256_fingerprint(ca_key)} "
+        f"(using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})",
+    )
+    test_case.assertEqual(
+        exit_code,
+        0,
+        f"Could not parse generated certificate with ssh-keygen, exit code {exit_code}",
+    )

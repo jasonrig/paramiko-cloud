@@ -5,11 +5,9 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
 from google.cloud.kms_v1 import AsymmetricSignResponse, Digest
 from google.cloud.kms_v1.types.resources import CryptoKeyVersion, PublicKey
-from paramiko.rsakey import RSAKey
 
-from paramiko_cloud.base import BaseKeyECDSA
 from paramiko_cloud.gcp.keys import ECDSAKey
-from tests.helpers import parse_certificate, sha256_fingerprint
+from tests.helpers import assert_valid_certificate
 
 
 class MockKeyManagementServiceClient:
@@ -69,26 +67,4 @@ class TestECDSAKey(TestCase):
                 ca_key = ECDSAKey(
                     MockKeyManagementServiceClient(self.TEST_KEY_NAME, algo), "test_key"
                 )
-                client_key = RSAKey.generate(1024)
-                cert_string = ca_key.sign_certificate(
-                    client_key, ["test.user"]
-                ).cert_string()
-                exit_code, cert_details = parse_certificate(cert_string)
-                self.assertEqual(
-                    cert_details.public_key,
-                    f"RSA-CERT SHA256:{sha256_fingerprint(client_key)}",
-                )
-                self.assertEqual(
-                    cert_details.signing_ca,
-                    self._signing_ca(ca_key),
-                )
-                self.assertEqual(
-                    exit_code,
-                    0,
-                    f"Could not parse generated certificate with ssh-keygen, exit code {exit_code}",
-                )
-
-    @staticmethod
-    def _signing_ca(ca_key: BaseKeyECDSA) -> str:
-        assert ca_key.ecdsa_curve is not None
-        return f"ECDSA SHA256:{sha256_fingerprint(ca_key)} (using ecdsa-sha2-nistp{ca_key.ecdsa_curve.key_length})"
+                assert_valid_certificate(self, ca_key)

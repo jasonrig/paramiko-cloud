@@ -1,5 +1,6 @@
 # Requirements for docs build
-paramiko
+sphinx
+paramiko<4
 cryptography
 boto3
 google-cloud-kms

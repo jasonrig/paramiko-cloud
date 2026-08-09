@@ -1,0 +1,7 @@
+sphinx
+paramiko<4
+cryptography
+boto3
+google-cloud-kms
+azure-keyvault-keys
+azure-identity

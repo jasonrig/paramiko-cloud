@@ -136,9 +136,10 @@ Certificate Key Type Names
 --------------------------
 
 By default, Paramiko-Cloud emits the established OpenSSH vendor names such as
-``ssh-rsa-cert-v01@openssh.com``. These names remain the interoperable choice:
-OpenSSH 10.2 and OpenSSH 10.3, including the version packaged by Alpine 3.24.1,
-do not yet accept the new standard names from ``draft-ietf-sshm-cert-01``.
+``ssh-rsa-cert-v01@openssh.com``. The `new standard names defined by
+draft-ietf-sshm-cert-01 <https://datatracker.ietf.org/doc/html/draft-ietf-sshm-cert-01#section-2.1>`_
+are not yet widely supported, so the vendor names remain the interoperable
+default.
 
 The draft-standard names are available as an explicit issuer-side option:
 
@@ -163,10 +164,11 @@ RSA, ECDSA, and Ed25519 may be used as certificate subject keys through
 Paramiko's corresponding key implementations. DSS remains conditional on
 whether the installed Paramiko version exposes it.
 
-Ed448 certificate fields are defined by the draft, but Paramiko 5.0 does not
-provide an Ed448 key primitive. Paramiko-Cloud accepts ``ssh-ed448`` only when
-the installed Paramiko version exposes ``Ed448Key``; otherwise it rejects the
-CSR instead of implementing a second key abstraction outside Paramiko.
+Although the draft defines Ed448 certificate fields, Paramiko 5.0 did not
+expose an Ed448 key primitive at the time of this Paramiko-Cloud release.
+Paramiko-Cloud accepts ``ssh-ed448`` only when the installed Paramiko version
+exposes ``Ed448Key``; otherwise it rejects the CSR instead of implementing a
+second key abstraction outside Paramiko.
 
 The cloud-backed certificate-authority implementations supplied by
 Paramiko-Cloud are ECDSA keys. RSA subject keys remain supported, but an RSA key

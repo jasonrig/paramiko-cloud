@@ -10,11 +10,12 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
 import subprocess
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath(".."))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
 
 # -- Project information -----------------------------------------------------
@@ -53,10 +54,10 @@ html_theme = "alabaster"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
+html_static_path = []
 
-# Build protobuf files
 subprocess.run(
-    ["python", "scripts/build_proto.py"],
-    cwd=os.path.realpath(os.path.join(os.path.dirname(__file__), "..")),
+    [sys.executable, str(ROOT / "docs" / "build_proto.py")],
+    cwd=ROOT,
+    check=True,
 )
